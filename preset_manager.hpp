@@ -19,9 +19,10 @@ public:
     inline static const juce::String kVersionProperty{"version"};
     inline static const juce::String kDefaultPresetName = "default";
 
-    PresetManager(juce::AudioProcessorValueTreeState& apvts, juce::AudioProcessor& p)
+    PresetManager(juce::AudioProcessorValueTreeState& apvts, juce::AudioProcessor& p, UpdateData::GithubInfo info)
         : valueTreeState(apvts)
         , processor_(p)
+        , update_data_(info)
     {
         // Create a default Preset Directory, if it doesn't exist
         if (!defaultDirectory.exists())

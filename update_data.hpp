@@ -1,13 +1,18 @@
 #pragma once
 #include <juce_core/juce_core.h>
-#include "global.hpp"
 
 namespace pluginshared {
 class UpdateData {
 public:
     static constexpr int kNetworkTimeout = 500; // ms
 
-    UpdateData() {
+    struct GithubInfo {
+        std::string_view owner;
+        std::string_view repo_name;
+    };
+
+    UpdateData(GithubInfo info)
+        : github_info_(info) {
         is_thread_run_ = update_thread_.startThread();
     }
 
@@ -38,8 +43,8 @@ public:
     }
 
     static juce::String GetPluginReleaseUrl() {
-        return juce::String::formatted("https://github.com/%s/%s/releases/latest", global::kPluginRepoOwnerName,
-                                       global::kPluginRepoName);
+        return juce::String::formatted("https://github.com/%s/%s/releases/latest", github_info_.owner,
+            github_info_.repo_name);
     }
 private:
     class UpdateThread : public juce::Thread {
@@ -55,7 +60,7 @@ private:
                 }
 
                 juce::String api_url = juce::String::formatted("https://api.github.com/repos/%s/%s/releases/latest",
-                                                               global::kPluginRepoOwnerName, global::kPluginRepoName);
+                                                               github_info_.owner, github_info_.repo_name);
                 juce::URL url(api_url);
 
                 auto op =
@@ -154,5 +159,6 @@ private:
 
     UpdateThread update_thread_;
     bool is_thread_run_{};
+    GithubInfo github_info_;
 };
 } // namespace pluginshared
