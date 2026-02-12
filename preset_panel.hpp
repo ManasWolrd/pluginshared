@@ -115,7 +115,7 @@ private:
 
             if (presetManager.GetUpdateData().HaveNewVersion()) {
                 menu.addItem("new version", []{
-                    juce::URL{UpdateData::GetPluginReleaseUrl()}.launchInDefaultBrowser();
+                    juce::URL{presetManager.GetUpdateData().GetPluginReleaseUrl()}.launchInDefaultBrowser();
                 });
             }
             else {
