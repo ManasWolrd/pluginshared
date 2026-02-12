@@ -68,7 +68,7 @@ private:
                 auto op =
                     juce::URL::InputStreamOptions{juce::URL::ParameterHandling::inAddress}
                         .withConnectionTimeoutMs(kNetworkTimeout)
-                        .withExtraHeaders(juce::String::formatted("User-Agent: %s_Updater", global::kPluginRepoName));
+                        .withExtraHeaders(juce::String::formatted("User-Agent: %s_Updater", github_info_.repo_name));
                 auto stream = url.createInputStream(op);
 
                 if (!stream) {
