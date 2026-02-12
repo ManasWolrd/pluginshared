@@ -12,7 +12,8 @@ public:
     };
 
     UpdateData(GithubInfo info)
-        : github_info_(info) {
+        : github_info_(info)
+        , update_thread_(info) {
         is_thread_run_ = update_thread_.startThread();
     }
 
@@ -42,15 +43,16 @@ public:
         return update_thread_.have_new_version_;
     }
 
-    static juce::String GetPluginReleaseUrl() {
+    juce::String GetPluginReleaseUrl() {
         return juce::String::formatted("https://github.com/%s/%s/releases/latest", github_info_.owner,
             github_info_.repo_name);
     }
 private:
     class UpdateThread : public juce::Thread {
     public:
-        UpdateThread()
-            : juce::Thread("version check") {}
+        UpdateThread(GithubInfo info)
+            : juce::Thread("version check")
+            , github_info_(info) {}
 
         void run() override {
             for (;;) {
@@ -155,6 +157,7 @@ private:
         juce::CriticalSection data_lock_;
         juce::String update_message_;
         juce::String button_text_;
+        GithubInfo github_info_;
     };
 
     UpdateThread update_thread_;
