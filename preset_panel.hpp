@@ -5,7 +5,9 @@
 #include "update_gui.hpp"
 
 namespace pluginshared {
-class PresetPanel : public juce::Component, juce::Button::Listener {
+class PresetPanel
+    : public juce::Component
+    , juce::Button::Listener {
 public:
     inline static ui::CustomLookAndFeel look_and_feel;
 
@@ -22,7 +24,7 @@ public:
         preset_menu_.setLookAndFeel(&look_and_feel);
         loadPresetList();
 
-        options_button_.setButtonText("options");
+        options_button_.setButtonText("info");
         addAndMakeVisible(options_button_);
         options_button_.addListener(this);
     }
@@ -38,8 +40,7 @@ public:
 
     void mouseDown(const juce::MouseEvent& event) override {
         if (event.originalComponent != &preset_name_) return;
-        preset_menu_.showMenuAsync(juce::PopupMenu::Options{}.withMousePosition(),
-        [this](int id) {
+        preset_menu_.showMenuAsync(juce::PopupMenu::Options{}.withMousePosition(), [this](int id) {
             if (id == 1) {
                 presetManager.loadDefaultPatch();
                 preset_name_.setText(PresetManager::kDefaultPresetName, juce::dontSendNotification);
@@ -56,14 +57,21 @@ public:
         });
     }
 
+    static int GetButtonWidth(juce::TextButton& button, int height) {
+        constexpr int pad = 4;
+        return pad * 2
+             + static_cast<int>(juce::TextLayout::getStringWidth(
+                 button.getLookAndFeel().getTextButtonFont(button, height), button.getButtonText()));
+    }
+
     void resized() override {
         auto container = getLocalBounds();
+        options_button_.setBounds(
+            container.removeFromLeft(GetButtonWidth(options_button_, container.getHeight())).reduced(2));
 
-        options_button_.setBounds(container.removeFromLeft(container.proportionOfWidth(0.15f)).reduced(2));
-
-        auto const b = container;
-        deleteButton.setBounds(container.removeFromRight(b.proportionOfWidth(0.15f)).reduced(2));
-        saveButton.setBounds(container.removeFromRight(b.proportionOfWidth(0.15f)).reduced(2));
+        deleteButton.setBounds(
+            container.removeFromRight(GetButtonWidth(deleteButton, container.getHeight())).reduced(2));
+        saveButton.setBounds(container.removeFromRight(GetButtonWidth(saveButton, container.getHeight())).reduced(2));
         previousPresetButton.setBounds(container.removeFromLeft(container.getHeight()).reduced(2));
         nextPresetButton.setBounds(container.removeFromRight(container.getHeight()).reduced(2));
         preset_name_.setBounds(container.reduced(2));
@@ -77,16 +85,15 @@ public:
 private:
     void buttonClicked(juce::Button* button) override {
         if (button == &saveButton) {
-            fileChooser = std::make_unique<juce::FileChooser>(
-                "Please enter the name of the preset to save",
-                PresetManager::defaultDirectory,
-                "*." + PresetManager::extension
-            );
+            fileChooser =
+                std::make_unique<juce::FileChooser>("Please enter the name of the preset to save",
+                                                    PresetManager::defaultDirectory, "*." + PresetManager::extension);
             fileChooser->launchAsync(juce::FileBrowserComponent::saveMode, [&](const juce::FileChooser& chooser) {
                 const auto resultFile = chooser.getResult();
                 const auto preset_name = resultFile.getFileNameWithoutExtension();
                 if (preset_name == PresetManager::kDefaultPresetName) {
-                    juce::NativeMessageBox::showMessageBoxAsync(juce::MessageBoxIconType::WarningIcon, "Invalid name", "default preset name is invalid");
+                    juce::NativeMessageBox::showMessageBoxAsync(juce::MessageBoxIconType::WarningIcon, "Invalid name",
+                                                                "default preset name is invalid");
                     return;
                 }
                 presetManager.savePreset(preset_name);
@@ -94,11 +101,11 @@ private:
             });
         }
         else if (button == &previousPresetButton) {
-            auto[index, name] = presetManager.loadPreviousPreset();
+            auto [index, name] = presetManager.loadPreviousPreset();
             preset_name_.setText(name, juce::dontSendNotification);
         }
         else if (button == &nextPresetButton) {
-            auto[index, name] = presetManager.loadNextPreset();
+            auto [index, name] = presetManager.loadNextPreset();
             preset_name_.setText(name, juce::dontSendNotification);
         }
         else if (button == &deleteButton) {
@@ -111,20 +118,18 @@ private:
 
             juce::String plugin_name;
             plugin_name << JucePlugin_Name << ' ' << JucePlugin_VersionString;
-            menu.addItem(plugin_name, false, false, []{});
+            menu.addItem(plugin_name, false, false, [] {});
 
             if (presetManager.GetUpdateData().HaveNewVersion()) {
-                menu.addItem("new version", [url = juce::URL{presetManager.GetUpdateData().GetPluginReleaseUrl()}]{
+                menu.addItem("new version", [url = juce::URL{presetManager.GetUpdateData().GetPluginReleaseUrl()}] {
                     url.launchInDefaultBrowser();
                 });
             }
             else {
-                menu.addItem("check update", [this]{
-                    CheckUpdate();
-                });
+                menu.addItem("check update", [this] { CheckUpdate(); });
             }
 
-            menu.addItem("init patch", [this]{
+            menu.addItem("init patch", [this] {
                 preset_name_.setText(PresetManager::kDefaultPresetName, juce::dontSendNotification);
                 presetManager.loadDefaultPatch();
             });
@@ -144,6 +149,7 @@ private:
             }
 
             juce::PopupMenu::Options op;
+            menu.setLookAndFeel(&look_and_feel_);
             menu.showMenuAsync(op.withMousePosition());
         }
     }
@@ -155,7 +161,7 @@ private:
         }
     }
 
-    void configureButton(juce::Button& button, const juce::String& buttonText)  {
+    void configureButton(juce::Button& button, const juce::String& buttonText) {
         button.setButtonText(buttonText);
         addAndMakeVisible(button);
         button.addListener(this);
@@ -185,7 +191,8 @@ private:
     juce::PopupMenu preset_menu_;
     std::unique_ptr<juce::FileChooser> fileChooser;
     ui::FlatButton options_button_;
+    ui::CustomLookAndFeel look_and_feel_;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PresetPanel)
 };
-}
+} // namespace pluginshared

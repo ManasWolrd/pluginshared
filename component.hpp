@@ -135,27 +135,23 @@ public:
                            const bool isActive, const bool isHighlighted, const bool isTicked, const bool hasSubMenu,
                            const juce::String& text, const juce::String& shortcutKeyText, const juce::Drawable* icon,
                            const juce::Colour* const textColourToUse) override {
-        // juce::ignoreUnused(isTicked,textColourToUse);
         if (isSeparator) {
-            auto r = area.reduced(5, 0);
+            auto r = area.reduced(4, 0);
             r.removeFromTop(juce::roundToInt(((float)r.getHeight() * 0.5f) - 0.5f));
 
             g.setColour(juce::Colours::black);
             g.fillRect(r.removeFromTop(1));
         }
         else {
-            auto textColour = juce::Colours::black;
-
             auto r = area.reduced(1);
+            auto text_color = juce::Colours::black;
 
             if (isHighlighted && isActive) {
                 g.setColour(orange_fore);
                 g.fillRect(r);
-
-                g.setColour(findColour(juce::PopupMenu::highlightedTextColourId));
             }
-            else {
-                g.setColour(textColour.withMultipliedAlpha(isActive ? 1.0f : 0.5f));
+            else if (!isActive) {
+                text_color = inactive_bg;
             }
 
             r.reduce(juce::jmin(5, area.getWidth() / 20), 0);
@@ -177,6 +173,7 @@ public:
             }
             else if (isTicked) {
                 auto tick = getTickShape(1.0f);
+                g.setColour(text_color);
                 g.fillPath(tick,
                            tick.getTransformToScaleToFit(iconArea.reduced(iconArea.getWidth() / 5, 0).toFloat(), true));
             }
@@ -192,11 +189,12 @@ public:
                 path.lineTo(x + arrowH * 0.6f, halfH);
                 path.lineTo(x, halfH + arrowH * 0.5f);
 
+                g.setColour(text_color);
                 g.strokePath(path, juce::PathStrokeType(2.0f));
             }
 
             r.removeFromRight(3);
-            g.setColour(juce::Colours::black);
+            g.setColour(text_color);
             g.drawFittedText(text, r, juce::Justification::centredLeft, 1);
 
             if (shortcutKeyText.isNotEmpty()) {
