@@ -114,8 +114,8 @@ private:
             menu.addItem(plugin_name, false, false, []{});
 
             if (presetManager.GetUpdateData().HaveNewVersion()) {
-                menu.addItem("new version", []{
-                    juce::URL{presetManager.GetUpdateData().GetPluginReleaseUrl()}.launchInDefaultBrowser();
+                menu.addItem("new version", [url = juce::URL{presetManager.GetUpdateData().GetPluginReleaseUrl()}]{
+                    url.launchInDefaultBrowser();
                 });
             }
             else {

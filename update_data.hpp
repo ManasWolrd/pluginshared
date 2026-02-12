@@ -12,8 +12,8 @@ public:
     };
 
     UpdateData(GithubInfo info)
-        : github_info_(info)
-        , update_thread_(info) {
+        : update_thread_(info)
+        , github_info_(info) {
         is_thread_run_ = update_thread_.startThread();
     }
 
