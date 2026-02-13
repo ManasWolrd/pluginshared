@@ -86,10 +86,10 @@ static inline Float256 Frac256(Float256 x) noexcept {
 }
 
 static inline Float128 Loadu128(const float* ptr) noexcept {
-    return {ptr[0], ptr[1], ptr[2], ptr[3]};
+    return Float128{ptr[0], ptr[1], ptr[2], ptr[3]};
 }
 static inline Float256 Loadu256(const float* ptr) noexcept {
-    return {ptr[0], ptr[1], ptr[2], ptr[3], ptr[4], ptr[5], ptr[6], ptr[7]};
+    return Float256{ptr[0], ptr[1], ptr[2], ptr[3], ptr[4], ptr[5], ptr[6], ptr[7]};
 }
 
 static inline Float128 Max128(Float128 a, Float128 b) noexcept {
@@ -100,14 +100,14 @@ static inline Float256 Max256(Float256 a, Float256 b) noexcept {
 }
 
 static inline Float128 BroadcastF128(float i) noexcept {
-    return {i, i, i, i};
+    return Float128{i, i, i, i};
 }
 static inline Float256 BroadcastF256(float i) noexcept {
-    return {i, i, i, i, i, i, i, i};
+    return Float256{i, i, i, i, i, i, i, i};
 }
 
 static inline Float256 combine(Float128 lo, Float128 hi) {
-    return {lo[0], lo[1], lo[2], lo[3], hi[0], hi[1], hi[2], hi[3]};
+    return Float256{lo[0], lo[1], lo[2], lo[3], hi[0], hi[1], hi[2], hi[3]};
 }
 
 static inline std::array<Float128, 4> Transpose(Float128 x0, Float128 x1, Float128 x2, Float128 x3) noexcept {

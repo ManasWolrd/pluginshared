@@ -211,6 +211,11 @@ public:
     }
 };
 
+inline static CustomLookAndFeel* GetLookAndFeel() {
+    static CustomLookAndFeel l;
+    return &l;
+}
+
 class SliderMenu : public juce::Slider::MouseListener {
 public:
     SliderMenu(juce::Slider& slider)
@@ -273,7 +278,7 @@ public:
     Dial(juce::StringRef title)
         : slider_menu_(slider) {
         slider.setSliderStyle(juce::Slider::SliderStyle::RotaryVerticalDrag);
-        slider.setLookAndFeel(&lookandfeel_);
+        slider.setLookAndFeel(GetLookAndFeel());
         slider.addMouseListener(&slider_menu_, true);
         addAndMakeVisible(slider);
 
@@ -282,7 +287,7 @@ public:
         label.setColour(juce::Label::ColourIds::textColourId, juce::Colours::black);
         addAndMakeVisible(label);
 
-        slider_menu_.menu_.setLookAndFeel(&lookandfeel_);
+        slider_menu_.menu_.setLookAndFeel(GetLookAndFeel());
     }
 
     ~Dial() override {
@@ -321,7 +326,6 @@ public:
 private:
     std::unique_ptr<juce::SliderParameterAttachment> attach_;
     SliderMenu slider_menu_;
-    CustomLookAndFeel lookandfeel_;
 };
 
 // ----------------------------------------
@@ -338,10 +342,10 @@ public:
     FlatSlider(juce::StringRef title = "unname", TitleLayout title_place = TitleLayout::Left)
         : slider_menu_(slider) {
         slider.setSliderStyle(juce::Slider::SliderStyle::LinearBar);
-        slider.setLookAndFeel(&lookandfeel_);
+        slider.setLookAndFeel(GetLookAndFeel());
         slider.addMouseListener(&slider_menu_, true);
         addAndMakeVisible(slider);
-        slider_menu_.menu_.setLookAndFeel(&lookandfeel_);
+        slider_menu_.menu_.setLookAndFeel(GetLookAndFeel());
 
         label.setText(title, juce::dontSendNotification);
         label.setJustificationType(juce::Justification::centredLeft);
@@ -402,7 +406,6 @@ private:
     TitleLayout title_layout{TitleLayout::Top};
     std::unique_ptr<juce::SliderParameterAttachment> attach_;
     SliderMenu slider_menu_;
-    CustomLookAndFeel lookandfeel_;
 };
 
 // ----------------------------------------
@@ -608,7 +611,7 @@ public:
 class FlatCombobox : public juce::ComboBox {
 public:
     FlatCombobox() {
-        setLookAndFeel(&look_);
+        setLookAndFeel(GetLookAndFeel());
         setJustificationType(juce::Justification::centredLeft);
     }
 
@@ -633,7 +636,6 @@ public:
     }
 private:
     std::unique_ptr<juce::ComboBoxParameterAttachment> attach_;
-    CustomLookAndFeel look_;
 };
 
 [[maybe_unused]]

@@ -14,7 +14,7 @@ public:
         imag1_.Reset();
         imag2_.Reset();
         imag3_.Reset();
-        lag_ = {};
+        lag_ = simd::Float128{};
     }
 
     /**
@@ -49,8 +49,8 @@ private:
         simd::Float128 z1_;
 
         void Reset() noexcept {
-            z0_ = {};
-            z1_ = {};
+            z0_ = simd::Float128{};
+            z1_ = simd::Float128{};
         }
 
         /**
@@ -96,7 +96,7 @@ public:
         imag5_.Reset();
         imag6_.Reset();
         imag7_.Reset();
-        lag_ = {};
+        lag_ = simd::Float128{};
     }
 
     /**
@@ -139,8 +139,8 @@ private:
         simd::Float128 z1_{};
 
         void Reset() noexcept {
-            z0_ = {};
-            z1_ = {};
+            z0_ = simd::Float128{};
+            z1_ = simd::Float128{};
         }
 
         /**

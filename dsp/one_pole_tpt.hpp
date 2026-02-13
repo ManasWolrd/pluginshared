@@ -11,7 +11,7 @@ template <simd::IsSimdFloat T>
 class OnePoleTPT {
 public:
     void Reset() noexcept {
-        lag_ = {};
+        lag_ = T{};
     }
 
     /**
