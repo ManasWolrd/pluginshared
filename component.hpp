@@ -135,6 +135,8 @@ public:
                            const bool isActive, const bool isHighlighted, const bool isTicked, const bool hasSubMenu,
                            const juce::String& text, const juce::String& shortcutKeyText, const juce::Drawable* icon,
                            const juce::Colour* const textColourToUse) override {
+        juce::ignoreUnused(textColourToUse);
+
         if (isSeparator) {
             auto r = area.reduced(4, 0);
             r.removeFromTop(juce::roundToInt(((float)r.getHeight() * 0.5f) - 0.5f));
