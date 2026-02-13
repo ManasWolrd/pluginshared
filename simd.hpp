@@ -37,13 +37,13 @@ static constexpr size_t LaneSize = sizeof(T) / sizeof(float);
 // ----------------------------------------
 
 template <class T, int... Indices>
-static inline T Shuffle(T a, T b) {
+static inline T Shuffle(T a, T b) noexcept {
 #if defined(__clang__)
     return __builtin_shufflevector(a, b, Indices...);
 #else
     constexpr int count = sizeof...(Indices);
     using MaskType = typename std::conditional<count == 4, Int128, Int256>::type;
-    return __builtin_shuffle(a, b, (MaskType){Indices...});
+    return __builtin_shuffle(a, b, MaskType{Indices...});
 #endif
 }
 
