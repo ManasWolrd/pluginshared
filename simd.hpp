@@ -1,6 +1,7 @@
 #pragma once
 #include <type_traits>
 #include <array>
+#include <cstddef>
 
 namespace simd {
 #if defined (__clang__)
