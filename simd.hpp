@@ -2,6 +2,9 @@
 #include <type_traits>
 #include <array>
 #include <cstddef>
+#include <x86/sse4.1.h>
+#include <x86/avx2.h>
+#include <bit>
 
 namespace simd {
 #if defined (__clang__)
@@ -33,6 +36,20 @@ static constexpr size_t LaneSize = sizeof(T) / sizeof(float);
 // extension?
 // ----------------------------------------
 
+static inline simde__m128 ToSimde(Float128 x) noexcept {
+    return std::bit_cast<simde__m128>(x);
+}
+static inline simde__m256 ToSimde(Float256 x) noexcept {
+    return std::bit_cast<simde__m256>(x);
+}
+
+static inline Float128 FromSimde(simde__m128 x) noexcept {
+    return std::bit_cast<Float128>(x);
+}
+static inline Float256 FromSimde(simde__m256 x) noexcept {
+    return std::bit_cast<Float256>(x);
+}
+
 static inline Int128 ToInt128(Float128 x) noexcept {
     return __builtin_convertvector(x, Int128);
 }
@@ -47,11 +64,25 @@ static inline Float256 ToFloat256(Int256 x) noexcept {
     return __builtin_convertvector(x, Float256);
 }
 
-static inline Float128 Frac128(Float128 x) noexcept {
-    return x - ToFloat128(ToInt128(x));
+static inline Float128 Frac128(Float128 x_) noexcept {
+#ifdef SIMDE_X86_SSE4_1_NATIVE
+    auto x = ToSimde(x_);
+    simde__m128 i = simde_mm_floor_ps(x);
+    auto s = simde_mm_sub_ps(x, i);
+    return FromSimde(s);
+#else
+    return x_ - ToFloat128(ToInt128(x_));
+#endif
 }
 static inline Float256 Frac256(Float256 x) noexcept {
+#ifdef SIMDE_X86_AVX2_NATIVE
+    auto x_ = ToSimde(x);
+    simde__m256 i = simde_mm256_floor_ps(x_);
+    auto s = simde_mm256_sub_ps(x_, i);
+    return FromSimde(s);
+#else
     return x - ToFloat256(ToInt256(x));
+#endif
 }
 
 static inline Float128 Loadu128(const float* ptr) noexcept {
