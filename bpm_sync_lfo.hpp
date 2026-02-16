@@ -69,13 +69,17 @@ public:
     }
 
     BpmSyncLFO(juce::String name, float min_freq, float max_freq, float interval, float warp, bool warpnp,
-               juce::StringRef begin_tempo, juce::StringRef end_tempo) {
+               juce::StringRef begin_tempo, juce::StringRef end_tempo, float default_hz, juce::StringRef default_tempo,
+               bool default_is_free) {
         TryInitTempoTable();
 
         name_ = std::move(name);
         std::construct_at(&free_freq_range_, min_freq, max_freq, interval, warp, warpnp);
         tempo_begin_idx_ = GetTempoValueIndex(begin_tempo);
         tempo_end_idx_ = GetTempoValueIndex(end_tempo);
+        default_free_hz_ = default_hz;
+        default_tempo_idx_ = GetTempoValueIndex(default_tempo);
+        default_is_free_ = default_is_free;
     }
 
     struct LfoInfo {
@@ -194,8 +198,15 @@ public:
 
     [[nodiscard]]
     std::pair<std::unique_ptr<juce::AudioParameterInt>, std::unique_ptr<juce::AudioParameterFloat>> Build() {
+        FreqAttrubute attr_init{};
+        if (!default_is_free_) {
+            attr_init.tempo_sync = -1;
+            attr_init.tempo_snap = -1;
+        }
+
         auto ptype = std::make_unique<juce::AudioParameterInt>(juce::ParameterID{name_ + "_type", 1}, name_ + "_type",
-                                                               0, std::numeric_limits<int32_t>::max(), 0);
+                                                               0, std::numeric_limits<int32_t>::max(),
+                                                               std::bit_cast<int>(attr_init));
         param_type = ptype.get();
 
         auto attr =
@@ -229,8 +240,9 @@ public:
                         return free_freq_range_.convertTo0to1(x.getFloatValue());
                     }
                 });
-        auto pfreq = std::make_unique<juce::AudioParameterFloat>(juce::ParameterID{name_ + "_freq", 1}, name_ + "_freq",
-                                                                 juce::NormalisableRange<float>{0, 1}, 0, attr);
+        auto pfreq = std::make_unique<juce::AudioParameterFloat>(
+            juce::ParameterID{name_ + "_freq", 1}, name_ + "_freq", juce::NormalisableRange<float>{0, 1},
+            default_is_free_ ? GetDefaultHzVal01() : GetDefaultTempoVal01(), attr);
         param_freq = pfreq.get();
 
         return {std::move(ptype), std::move(pfreq)};
@@ -239,11 +251,15 @@ public:
     [[nodiscard]]
     std::pair<std::unique_ptr<juce::AudioParameterInt>, std::unique_ptr<juce::AudioParameterFloat>> Build(
         juce::String name, float min_freq, float max_freq, float interval, float warp, bool warpnp,
-        juce::StringRef begin_tempo, juce::StringRef end_tempo) {
+        juce::StringRef begin_tempo, juce::StringRef end_tempo, float default_hz, juce::StringRef default_tempo,
+        bool default_is_free) {
         name_ = std::move(name);
         std::construct_at(&free_freq_range_, min_freq, max_freq, interval, warp, warpnp);
         tempo_begin_idx_ = GetTempoValueIndex(begin_tempo);
         tempo_end_idx_ = GetTempoValueIndex(end_tempo);
+        default_free_hz_ = default_hz;
+        default_tempo_idx_ = GetTempoValueIndex(default_tempo);
+        default_is_free_ = default_is_free;
         return Build();
     }
 
@@ -258,6 +274,32 @@ public:
 
     void SetFreqAttribute(FreqAttrubute attr) {
         param_type->setValueNotifyingHost(param_type->convertTo0to1(static_cast<float>(std::bit_cast<int>(attr))));
+    }
+
+    void ResetToDefaultHz() {
+        param_freq->setValueNotifyingHost(free_freq_range_.convertTo0to1(default_free_hz_));
+        FreqAttrubute attr = GetFreqAttribute();
+        attr.tempo_sync = 0;
+        SetFreqAttribute(attr);
+    }
+
+    void ResetToDefaultTempo() {
+        float val01 = static_cast<float>(default_tempo_idx_ - tempo_begin_idx_)
+                    / static_cast<float>(tempo_end_idx_ - tempo_begin_idx_);
+        param_freq->setValueNotifyingHost(val01);
+        FreqAttrubute attr = GetFreqAttribute();
+        attr.tempo_sync = -1;
+        SetFreqAttribute(attr);
+    }
+
+    float GetDefaultHzVal01() {
+        return free_freq_range_.convertTo0to1(default_free_hz_);
+    }
+
+    float GetDefaultTempoVal01() {
+        float val01 = static_cast<float>(default_tempo_idx_ - tempo_begin_idx_)
+                    / static_cast<float>(tempo_end_idx_ - tempo_begin_idx_);
+        return val01;
     }
 
     juce::AudioParameterFloat* param_freq{};
@@ -277,5 +319,8 @@ private:
     juce::NormalisableRange<float> free_freq_range_;
     int tempo_begin_idx_;
     int tempo_end_idx_;
+    float default_free_hz_;
+    int default_tempo_idx_;
+    bool default_is_free_;
 };
 } // namespace pluginshared
