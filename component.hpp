@@ -26,7 +26,7 @@ static juce::Colour const orange_fore{0xf5, 0xb1, 0x26};
 class CustomLookAndFeel : public juce::LookAndFeel_V4 {
 public:
     void drawRotarySlider(juce::Graphics& g, int x, int y, int width, int height, float sliderPos,
-                          const float rotaryStartAngle, const float rotaryEndAngle, juce::Slider&) override {
+                          const float rotaryStartAngle, const float rotaryEndAngle, juce::Slider& s) override {
         // Radius of knob
         auto radius = juce::jmin(static_cast<float>(width) / 2.0f, static_cast<float>(height) / 2.0f) - 3.0f;
         // Centre point (centreX, centreY) of knob
@@ -47,7 +47,7 @@ public:
         // Draw path of slider foreground (in white)
         juce::Path foregroundArc;
         foregroundArc.addCentredArc(centreX, centreY, radius, radius, 0.0f, rotaryStartAngle, angle, true);
-        g.setColour(dial_fore);
+        g.setColour(s.isEnabled() ? dial_fore : inactive_bg);
         g.strokePath(foregroundArc,
                      juce::PathStrokeType(thickness, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
 
