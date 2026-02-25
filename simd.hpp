@@ -1,13 +1,13 @@
 #pragma once
-#include <type_traits>
 #include <array>
-#include <cstddef>
-#include <x86/sse4.1.h>
-#include <x86/avx2.h>
 #include <bit>
+#include <cstddef>
+#include <type_traits>
+#include <x86/avx2.h>
+#include <x86/sse4.1.h>
 
 namespace simd {
-#if defined (__clang__)
+#if defined(__clang__)
 using Float128 = float __attribute__((ext_vector_type(4)));
 using Int128 = int __attribute__((ext_vector_type(4)));
 
@@ -21,15 +21,15 @@ using Float256 = float __attribute__((vector_size(32)));
 using Int256 = int __attribute__((vector_size(32)));
 #endif
 
-template<class T, size_t N>
+template <class T, size_t N>
 struct alignas(16) Array128 : public std::array<T, N> {};
-template<class T, size_t N>
+template <class T, size_t N>
 struct alignas(32) Array256 : public std::array<T, N> {};
 
-template<class T>
+template <class T>
 concept IsSimdFloat = std::is_same_v<T, Float128> || std::is_same_v<T, Float256>;
 
-template<class T>
+template <class T>
 static constexpr size_t LaneSize = sizeof(T) / sizeof(float);
 
 // ----------------------------------------
@@ -131,7 +131,7 @@ static inline std::array<Float128, 4> Transpose(Float128 x0, Float128 x1, Float1
     Float128 row1 = Shuffle<Float128, 2, 3, 6, 7>(tmp0, tmp2); // [r0c1, r1c1, r2c1, r3c1]
     Float128 row2 = Shuffle<Float128, 0, 1, 4, 5>(tmp1, tmp3); // [r0c2, r1c1, r2c2, r3c2]
     Float128 row3 = Shuffle<Float128, 2, 3, 6, 7>(tmp1, tmp3); // [r0c3, r1c3, r2c3, r3c3]
-    
+
     return {row0, row1, row2, row3};
 }
 static inline std::array<Float256, 4> Transpose256(
@@ -163,4 +163,74 @@ static inline float ReduceAdd(Float256 x) noexcept {
     return x[0] + x[1] + x[2] + x[3] + x[4] + x[5] + x[6] + x[7];
 }
 
-}
+// ----------------------------------------
+// complex
+// ----------------------------------------
+
+template <class T>
+struct SimdComplex {
+    T re;
+    T im;
+
+    // -------------------- 复数与复数 --------------------
+    inline SimdComplex operator+(const SimdComplex& o) const noexcept { return {re + o.re, im + o.im}; }
+    inline SimdComplex operator-(const SimdComplex& o) const noexcept { return {re - o.re, im - o.im}; }
+    inline SimdComplex operator*(const SimdComplex& o) const noexcept {
+        return {re * o.re - im * o.im, re * o.im + im * o.re};
+    }
+    inline SimdComplex operator/(const SimdComplex& o) const noexcept {
+        T den = o.re * o.re + o.im * o.im;
+        return {(re * o.re + im * o.im) / den, (im * o.re - re * o.im) / den};
+    }
+
+    // -------------------- 复合赋值 --------------------
+    inline SimdComplex& operator+=(const SimdComplex& o) noexcept {
+        re += o.re; im += o.im;
+        return *this;
+    }
+    inline SimdComplex& operator-=(const SimdComplex& o) noexcept {
+        re -= o.re; im -= o.im;
+        return *this;
+    }
+    inline SimdComplex& operator*=(const SimdComplex& o) noexcept {
+        T new_re = re * o.re - im * o.im;
+        im = re * o.im + im * o.re;
+        re = new_re;
+        return *this;
+    }
+    inline SimdComplex& operator/=(const SimdComplex& o) noexcept {
+        T den = o.re * o.re + o.im * o.im;
+        T new_re = (re * o.re + im * o.im) / den;
+        im = (im * o.re - re * o.im) / den;
+        re = new_re;
+        return *this;
+    }
+
+    // -------------------- 复数与实数 --------------------
+    inline SimdComplex operator+(T s) const noexcept { return {re + s, im}; }
+    inline SimdComplex operator-(T s) const noexcept { return {re - s, im}; }
+    inline SimdComplex operator*(T s) const noexcept { return {re * s, im * s}; }
+    inline SimdComplex operator/(T s) const noexcept { return {re / s, im / s}; }
+
+    // -------------------- 复数与实数赋值 --------------------
+    inline SimdComplex& operator+=(T s) noexcept { re += s; return *this; }
+    inline SimdComplex& operator-=(T s) noexcept { re -= s; return *this; }
+    inline SimdComplex& operator*=(T s) noexcept { re *= s; im *= s; return *this; }
+    inline SimdComplex& operator/=(T s) noexcept { re /= s; im /= s; return *this; }
+
+    // -------------------- 实数与复数 --------------------
+    friend inline SimdComplex operator+(T s, const SimdComplex& v) noexcept { return {s + v.re, v.im}; }
+    friend inline SimdComplex operator-(T s, const SimdComplex& v) noexcept { return {s - v.re, -v.im}; }
+    friend inline SimdComplex operator*(T s, const SimdComplex& v) noexcept { return {s * v.re, s * v.im}; }
+    friend inline SimdComplex operator/(T s, const SimdComplex& v) noexcept {
+        T den = v.re * v.re + v.im * v.im;
+        return {(s * v.re) / den, (-s * v.im) / den};
+    }
+
+    // -------------------- 辅助 --------------------
+    inline SimdComplex conj() const noexcept { return {re, -im}; }
+};
+using Complex128 = SimdComplex<Float128>;
+using Complex256 = SimdComplex<Float256>;
+
+} // namespace simd
