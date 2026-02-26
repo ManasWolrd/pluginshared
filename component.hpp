@@ -209,6 +209,29 @@ public:
             }
         }
     }
+
+    void drawTooltip (juce::Graphics& g, const juce::String& text, int width, int height) override {
+        juce::Rectangle<int> bounds (width, height);
+        auto cornerSize = 5.0f;
+
+        g.setColour (findColour (juce::TooltipWindow::backgroundColourId));
+        g.fillRoundedRectangle (bounds.toFloat(), cornerSize);
+
+        g.setColour (findColour (juce::TooltipWindow::outlineColourId));
+        g.drawRoundedRectangle (bounds.toFloat().reduced (0.5f, 0.5f), cornerSize, 1.0f);
+
+        const float tooltipFontSize = 13.0f;
+        const int maxToolTipWidth = 400;
+
+        juce::AttributedString s;
+        s.setWordWrap (juce::AttributedString::WordWrap::byChar);
+        s.setJustification (juce::Justification::left);
+        s.append (text, juce::FontOptions (tooltipFontSize, juce::Font::FontStyleFlags::plain).withMetricsKind (getDefaultMetricsKind()), findColour (juce::TooltipWindow::textColourId));
+
+        juce::TextLayout tl;
+        tl.createLayoutWithBalancedLineLengths (s, (float) maxToolTipWidth);
+        tl.draw(g, bounds.reduced(4, 2).toFloat());
+    }
 };
 
 inline static CustomLookAndFeel* GetLookAndFeel() {
