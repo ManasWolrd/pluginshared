@@ -61,14 +61,13 @@ private:
                     return;
                 }
 
-                juce::String api_url = juce::String::formatted("https://api.github.com/repos/%s/%s/releases/latest",
-                                                               github_info_.owner, github_info_.repo_name);
+                juce::String api_url{"https://api.github.com/repos/"};
+                api_url << github_info_.owner.data() << "/" << github_info_.repo_name.data() << "/releases/latest";
                 juce::URL url(api_url);
 
                 auto op =
                     juce::URL::InputStreamOptions{juce::URL::ParameterHandling::inAddress}
-                        .withConnectionTimeoutMs(kNetworkTimeout)
-                        .withExtraHeaders(juce::String::formatted("User-Agent: %s_Updater", github_info_.repo_name));
+                        .withConnectionTimeoutMs(kNetworkTimeout);
                 auto stream = url.createInputStream(op);
 
                 if (!stream) {
@@ -83,6 +82,15 @@ private:
                 auto json = juce::JSON::fromString(response);
 
                 if (json.isObject()) {
+                    if (json.hasProperty("status")) {
+                        if (json.getProperty("status", "404").toString() == "404") {
+                            SetUpdateMessage("Plugin not found on Github, Please report this issue");
+                            SetButtonLabel("ok");
+                            is_complete_ = true;
+                            continue;
+                        }
+                    }
+
                     // 获取最新版本号，例如 "v1.2.0"
                     juce::String latest_version = json.getProperty("tag_name", "v" JucePlugin_VersionString).toString();
 
@@ -94,7 +102,9 @@ private:
                     if (latest_version != current_version) {
                         juce::String msg;
                         msg << "New version available: " << latest_version << "\n"
-                            << "Current version: " << current_version;
+                            << "Current version: " << current_version
+                            << "\n\n"
+                            << json.getProperty("body", "What? No update description?").toString();
                         SetUpdateMessage(msg);
                         SetButtonLabel("ok");
                         have_new_version_ = true;
