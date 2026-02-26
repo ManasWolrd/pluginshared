@@ -10,15 +10,19 @@ namespace simd {
 #if defined(__clang__)
 using Float128 = float __attribute__((ext_vector_type(4)));
 using Int128 = int __attribute__((ext_vector_type(4)));
+using Uint128 = unsigned int __attribute__((ext_vector_type(4)));
 
 using Float256 = float __attribute__((ext_vector_type(8)));
 using Int256 = int __attribute__((ext_vector_type(8)));
+using Uint256 = unsigned int __attribute__((ext_vector_type(8)));
 #else
 using Float128 = float __attribute__((vector_size(16)));
 using Int128 = int __attribute__((vector_size(16)));
+using Uint128 = unsigned int __attribute__((vector_size(16)));
 
 using Float256 = float __attribute__((vector_size(32)));
 using Int256 = int __attribute__((vector_size(32)));
+using Uint256 = unsigned int __attribute__((vector_size(32)));
 #endif
 
 template <class T, size_t N>
