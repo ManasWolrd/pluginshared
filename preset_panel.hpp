@@ -9,8 +9,6 @@ class PresetPanel
     : public juce::Component
     , juce::Button::Listener {
 public:
-    inline static ui::CustomLookAndFeel look_and_feel;
-
     PresetPanel(PresetManager& pm)
         : presetManager(pm) {
         configureButton(saveButton, "Save");
@@ -21,7 +19,7 @@ public:
         preset_name_.addMouseListener(this, false);
         preset_name_.setText(presetManager.getCurrentPreset(), juce::dontSendNotification);
         addAndMakeVisible(preset_name_);
-        preset_menu_.setLookAndFeel(&look_and_feel);
+        preset_menu_.setLookAndFeel(ui::GetLookAndFeel());
         loadPresetList();
 
         options_button_.setButtonText("info");
@@ -149,7 +147,7 @@ private:
             }
 
             juce::PopupMenu::Options op;
-            menu.setLookAndFeel(&look_and_feel_);
+            menu.setLookAndFeel(ui::GetLookAndFeel());
             menu.showMenuAsync(op.withMousePosition());
         }
     }
@@ -191,7 +189,6 @@ private:
     juce::PopupMenu preset_menu_;
     std::unique_ptr<juce::FileChooser> fileChooser;
     ui::FlatButton options_button_;
-    ui::CustomLookAndFeel look_and_feel_;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PresetPanel)
 };

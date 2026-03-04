@@ -26,7 +26,7 @@ static juce::Colour const orange_fore{0xf5, 0xb1, 0x26};
 class CustomLookAndFeel : public juce::LookAndFeel_V4 {
 public:
     void drawRotarySlider(juce::Graphics& g, int x, int y, int width, int height, float sliderPos,
-                          const float rotaryStartAngle, const float rotaryEndAngle, juce::Slider&) override {
+                          const float rotaryStartAngle, const float rotaryEndAngle, juce::Slider& s) override {
         // Radius of knob
         auto radius = juce::jmin(static_cast<float>(width) / 2.0f, static_cast<float>(height) / 2.0f) - 3.0f;
         // Centre point (centreX, centreY) of knob
@@ -47,7 +47,7 @@ public:
         // Draw path of slider foreground (in white)
         juce::Path foregroundArc;
         foregroundArc.addCentredArc(centreX, centreY, radius, radius, 0.0f, rotaryStartAngle, angle, true);
-        g.setColour(dial_fore);
+        g.setColour(s.isEnabled() ? dial_fore : inactive_bg);
         g.strokePath(foregroundArc,
                      juce::PathStrokeType(thickness, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
 
@@ -135,6 +135,8 @@ public:
                            const bool isActive, const bool isHighlighted, const bool isTicked, const bool hasSubMenu,
                            const juce::String& text, const juce::String& shortcutKeyText, const juce::Drawable* icon,
                            const juce::Colour* const textColourToUse) override {
+        juce::ignoreUnused(textColourToUse);
+
         if (isSeparator) {
             auto r = area.reduced(4, 0);
             r.removeFromTop(juce::roundToInt(((float)r.getHeight() * 0.5f) - 0.5f));
@@ -207,7 +209,35 @@ public:
             }
         }
     }
+
+    void drawTooltip (juce::Graphics& g, const juce::String& text, int width, int height) override {
+        juce::Rectangle<int> bounds (width, height);
+        auto cornerSize = 5.0f;
+
+        g.setColour (findColour (juce::TooltipWindow::backgroundColourId));
+        g.fillRoundedRectangle (bounds.toFloat(), cornerSize);
+
+        g.setColour (findColour (juce::TooltipWindow::outlineColourId));
+        g.drawRoundedRectangle (bounds.toFloat().reduced (0.5f, 0.5f), cornerSize, 1.0f);
+
+        const float tooltipFontSize = 13.0f;
+        const int maxToolTipWidth = 400;
+
+        juce::AttributedString s;
+        s.setWordWrap (juce::AttributedString::WordWrap::byChar);
+        s.setJustification (juce::Justification::left);
+        s.append (text, juce::FontOptions (tooltipFontSize, juce::Font::FontStyleFlags::plain).withMetricsKind (getDefaultMetricsKind()), findColour (juce::TooltipWindow::textColourId));
+
+        juce::TextLayout tl;
+        tl.createLayoutWithBalancedLineLengths (s, (float) maxToolTipWidth);
+        tl.draw(g, bounds.reduced(4, 2).toFloat());
+    }
 };
+
+inline static CustomLookAndFeel* GetLookAndFeel() {
+    static CustomLookAndFeel l;
+    return &l;
+}
 
 class SliderMenu : public juce::Slider::MouseListener {
 public:
@@ -271,7 +301,7 @@ public:
     Dial(juce::StringRef title)
         : slider_menu_(slider) {
         slider.setSliderStyle(juce::Slider::SliderStyle::RotaryVerticalDrag);
-        slider.setLookAndFeel(&lookandfeel_);
+        slider.setLookAndFeel(GetLookAndFeel());
         slider.addMouseListener(&slider_menu_, true);
         addAndMakeVisible(slider);
 
@@ -280,7 +310,7 @@ public:
         label.setColour(juce::Label::ColourIds::textColourId, juce::Colours::black);
         addAndMakeVisible(label);
 
-        slider_menu_.menu_.setLookAndFeel(&lookandfeel_);
+        slider_menu_.menu_.setLookAndFeel(GetLookAndFeel());
     }
 
     ~Dial() override {
@@ -319,7 +349,6 @@ public:
 private:
     std::unique_ptr<juce::SliderParameterAttachment> attach_;
     SliderMenu slider_menu_;
-    CustomLookAndFeel lookandfeel_;
 };
 
 // ----------------------------------------
@@ -336,10 +365,10 @@ public:
     FlatSlider(juce::StringRef title = "unname", TitleLayout title_place = TitleLayout::Left)
         : slider_menu_(slider) {
         slider.setSliderStyle(juce::Slider::SliderStyle::LinearBar);
-        slider.setLookAndFeel(&lookandfeel_);
+        slider.setLookAndFeel(GetLookAndFeel());
         slider.addMouseListener(&slider_menu_, true);
         addAndMakeVisible(slider);
-        slider_menu_.menu_.setLookAndFeel(&lookandfeel_);
+        slider_menu_.menu_.setLookAndFeel(GetLookAndFeel());
 
         label.setText(title, juce::dontSendNotification);
         label.setJustificationType(juce::Justification::centredLeft);
@@ -400,7 +429,6 @@ private:
     TitleLayout title_layout{TitleLayout::Top};
     std::unique_ptr<juce::SliderParameterAttachment> attach_;
     SliderMenu slider_menu_;
-    CustomLookAndFeel lookandfeel_;
 };
 
 // ----------------------------------------
@@ -606,7 +634,7 @@ public:
 class FlatCombobox : public juce::ComboBox {
 public:
     FlatCombobox() {
-        setLookAndFeel(&look_);
+        setLookAndFeel(GetLookAndFeel());
         setJustificationType(juce::Justification::centredLeft);
     }
 
@@ -631,7 +659,6 @@ public:
     }
 private:
     std::unique_ptr<juce::ComboBoxParameterAttachment> attach_;
-    CustomLookAndFeel look_;
 };
 
 [[maybe_unused]]
