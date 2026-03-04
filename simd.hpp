@@ -29,6 +29,8 @@ template <class T, size_t N>
 struct alignas(16) Array128 : public std::array<T, N> {};
 template <class T, size_t N>
 struct alignas(32) Array256 : public std::array<T, N> {};
+template <class T, size_t N>
+struct alignas(alignof(T)) Array : public std::array<T, N> {};
 
 template <class T>
 concept IsSimdFloat = std::is_same_v<T, Float128> || std::is_same_v<T, Float256>;
@@ -80,24 +82,20 @@ static inline Float256 ToFloat256(Int256 x) noexcept {
 }
 
 static inline Float128 Frac128(Float128 x_) noexcept {
-#ifdef SIMDE_X86_SSE4_1_NATIVE
+#ifdef SIMDE_X86_SSE2_NATIVE
+    return x_ - ToFloat128(ToInt128(x_));
+#else
     auto x = ToSimde(x_);
     simde__m128 i = simde_mm_floor_ps(x);
     auto s = simde_mm_sub_ps(x, i);
     return FromSimde(s);
-#else
-    return x_ - ToFloat128(ToInt128(x_));
 #endif
 }
 static inline Float256 Frac256(Float256 x) noexcept {
-#ifdef SIMDE_X86_AVX_NATIVE
     auto x_ = ToSimde(x);
     simde__m256 i = simde_mm256_floor_ps(x_);
     auto s = simde_mm256_sub_ps(x_, i);
     return FromSimde(s);
-#else
-    return x - ToFloat256(ToInt256(x));
-#endif
 }
 
 static inline Float128 Loadu128(const float* ptr) noexcept {
@@ -112,6 +110,13 @@ static inline Float128 Max128(Float128 a, Float128 b) noexcept {
 }
 static inline Float256 Max256(Float256 a, Float256 b) noexcept {
     return a > b ? a : b;
+}
+
+static inline Float128 Min(Float128 a, Float128 b) noexcept {
+    return a < b ? a : b;
+}
+static inline Float256 Min(Float256 a, Float256 b) noexcept {
+    return a < b ? a : b;
 }
 
 static inline Float128 BroadcastF128(float i) noexcept {
