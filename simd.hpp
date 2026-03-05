@@ -126,8 +126,11 @@ static inline Float256 BroadcastF256(float i) noexcept {
     return Float256{i, i, i, i, i, i, i, i};
 }
 
-static inline Float256 combine(Float128 lo, Float128 hi) {
+static inline Float256 Combine(Float128 lo, Float128 hi) noexcept {
     return Float256{lo[0], lo[1], lo[2], lo[3], hi[0], hi[1], hi[2], hi[3]};
+}
+static inline std::array<Float128, 2> Break(Float256 x) noexcept {
+    return {Float128{x[0], x[1], x[2], x[3]}, Float128{x[4], x[5], x[6], x[7]}};
 }
 
 static inline std::array<Float128, 4> Transpose(Float128 x0, Float128 x1, Float128 x2, Float128 x3) noexcept {
@@ -147,10 +150,10 @@ static inline std::array<Float256, 4> Transpose256(
     Float128 a, Float128 b, Float128 c, Float128 d,
     Float128 e, Float128 f, Float128 g, Float128 h
 ) noexcept {
-    Float256 x0 = combine(a, e);
-    Float256 x1 = combine(b, f);
-    Float256 x2 = combine(c, g);
-    Float256 x3 = combine(d, h);
+    Float256 x0 = Combine(a, e);
+    Float256 x1 = Combine(b, f);
+    Float256 x2 = Combine(c, g);
+    Float256 x3 = Combine(d, h);
 
     Float256 m0 = Shuffle<Float256, 0, 8, 1, 9, 4, 12, 5, 13>(x0, x1);
     Float256 m1 = Shuffle<Float256, 2, 10, 3, 11, 6, 14, 7, 15>(x0, x1);
