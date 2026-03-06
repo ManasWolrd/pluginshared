@@ -59,12 +59,24 @@ static inline simde__m128 ToSimde(Float128 x) noexcept {
 static inline simde__m256 ToSimde(Float256 x) noexcept {
     return std::bit_cast<simde__m256>(x);
 }
+static inline simde__m128i ToSimde(Int128 x) noexcept {
+    return std::bit_cast<simde__m128i>(x);
+}
+static inline simde__m256i ToSimde(Int256 x) noexcept {
+    return std::bit_cast<simde__m256i>(x);
+}
 
 static inline Float128 FromSimde(simde__m128 x) noexcept {
     return std::bit_cast<Float128>(x);
 }
 static inline Float256 FromSimde(simde__m256 x) noexcept {
     return std::bit_cast<Float256>(x);
+}
+static inline Int128 FromSimde(simde__m128i x) noexcept {
+    return std::bit_cast<Int128>(x);
+}
+static inline Int256 FromSimde(simde__m256i x) noexcept {
+    return std::bit_cast<Int256>(x);
 }
 
 static inline Int128 ToInt128(Float128 x) noexcept {
