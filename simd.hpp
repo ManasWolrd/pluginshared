@@ -3,6 +3,7 @@
 #include <bit>
 #include <cstddef>
 #include <type_traits>
+
 #include <x86/avx2.h>
 #include <x86/sse4.1.h>
 
@@ -94,13 +95,13 @@ static inline Float256 ToFloat256(Int256 x) noexcept {
 }
 
 static inline Float128 Frac128(Float128 x_) noexcept {
-#ifdef SIMDE_X86_SSE2_NATIVE
+#if defined(SIMDE_X86_SSE4_1_NATIVE) || defined(SIMDE_X86_AVX_NATIVE) || defined(SIMDE_ARM_NEON_A64V8_NATIVE)
+    auto x = ToSimde(x_);
+    return FromSimde(simde_mm_sub_ps(x, simde_mm_floor_ps(x)));
+#elif defined(SIMDE_X86_SSE2_NATIVE) || defined(SIMDE_ARM_NEON_NATIVE)
     return x_ - ToFloat128(ToInt128(x_));
 #else
-    auto x = ToSimde(x_);
-    simde__m128 i = simde_mm_floor_ps(x);
-    auto s = simde_mm_sub_ps(x, i);
-    return FromSimde(s);
+    return Float128{x_[0] - floorf(x_[0]), x_[1] - floorf(x_[1]), x_[2] - floorf(x_[2]), x_[3] - floorf(x_[3])};
 #endif
 }
 static inline Float256 Frac256(Float256 x) noexcept {
@@ -142,7 +143,10 @@ static inline Float256 Combine(Float128 lo, Float128 hi) noexcept {
     return Float256{lo[0], lo[1], lo[2], lo[3], hi[0], hi[1], hi[2], hi[3]};
 }
 static inline std::array<Float128, 2> Break(Float256 x) noexcept {
-    return {Float128{x[0], x[1], x[2], x[3]}, Float128{x[4], x[5], x[6], x[7]}};
+    return {
+        Float128{x[0], x[1], x[2], x[3]},
+        Float128{x[4], x[5], x[6], x[7]}
+    };
 }
 
 static inline std::array<Float128, 4> Transpose(Float128 x0, Float128 x1, Float128 x2, Float128 x3) noexcept {
@@ -158,10 +162,8 @@ static inline std::array<Float128, 4> Transpose(Float128 x0, Float128 x1, Float1
 
     return {row0, row1, row2, row3};
 }
-static inline std::array<Float256, 4> Transpose256(
-    Float128 a, Float128 b, Float128 c, Float128 d,
-    Float128 e, Float128 f, Float128 g, Float128 h
-) noexcept {
+static inline std::array<Float256, 4> Transpose256(Float128 a, Float128 b, Float128 c, Float128 d, Float128 e,
+                                                   Float128 f, Float128 g, Float128 h) noexcept {
     Float256 x0 = Combine(a, e);
     Float256 x1 = Combine(b, f);
     Float256 x2 = Combine(c, g);
@@ -197,8 +199,12 @@ struct SimdComplex {
     T im;
 
     // -------------------- 复数与复数 --------------------
-    inline SimdComplex operator+(const SimdComplex& o) const noexcept { return {re + o.re, im + o.im}; }
-    inline SimdComplex operator-(const SimdComplex& o) const noexcept { return {re - o.re, im - o.im}; }
+    inline SimdComplex operator+(const SimdComplex& o) const noexcept {
+        return {re + o.re, im + o.im};
+    }
+    inline SimdComplex operator-(const SimdComplex& o) const noexcept {
+        return {re - o.re, im - o.im};
+    }
     inline SimdComplex operator*(const SimdComplex& o) const noexcept {
         return {re * o.re - im * o.im, re * o.im + im * o.re};
     }
@@ -209,11 +215,13 @@ struct SimdComplex {
 
     // -------------------- 复合赋值 --------------------
     inline SimdComplex& operator+=(const SimdComplex& o) noexcept {
-        re += o.re; im += o.im;
+        re += o.re;
+        im += o.im;
         return *this;
     }
     inline SimdComplex& operator-=(const SimdComplex& o) noexcept {
-        re -= o.re; im -= o.im;
+        re -= o.re;
+        im -= o.im;
         return *this;
     }
     inline SimdComplex& operator*=(const SimdComplex& o) noexcept {
@@ -231,28 +239,58 @@ struct SimdComplex {
     }
 
     // -------------------- 复数与实数 --------------------
-    inline SimdComplex operator+(T s) const noexcept { return {re + s, im}; }
-    inline SimdComplex operator-(T s) const noexcept { return {re - s, im}; }
-    inline SimdComplex operator*(T s) const noexcept { return {re * s, im * s}; }
-    inline SimdComplex operator/(T s) const noexcept { return {re / s, im / s}; }
+    inline SimdComplex operator+(T s) const noexcept {
+        return {re + s, im};
+    }
+    inline SimdComplex operator-(T s) const noexcept {
+        return {re - s, im};
+    }
+    inline SimdComplex operator*(T s) const noexcept {
+        return {re * s, im * s};
+    }
+    inline SimdComplex operator/(T s) const noexcept {
+        return {re / s, im / s};
+    }
 
     // -------------------- 复数与实数赋值 --------------------
-    inline SimdComplex& operator+=(T s) noexcept { re += s; return *this; }
-    inline SimdComplex& operator-=(T s) noexcept { re -= s; return *this; }
-    inline SimdComplex& operator*=(T s) noexcept { re *= s; im *= s; return *this; }
-    inline SimdComplex& operator/=(T s) noexcept { re /= s; im /= s; return *this; }
+    inline SimdComplex& operator+=(T s) noexcept {
+        re += s;
+        return *this;
+    }
+    inline SimdComplex& operator-=(T s) noexcept {
+        re -= s;
+        return *this;
+    }
+    inline SimdComplex& operator*=(T s) noexcept {
+        re *= s;
+        im *= s;
+        return *this;
+    }
+    inline SimdComplex& operator/=(T s) noexcept {
+        re /= s;
+        im /= s;
+        return *this;
+    }
 
     // -------------------- 实数与复数 --------------------
-    friend inline SimdComplex operator+(T s, const SimdComplex& v) noexcept { return {s + v.re, v.im}; }
-    friend inline SimdComplex operator-(T s, const SimdComplex& v) noexcept { return {s - v.re, -v.im}; }
-    friend inline SimdComplex operator*(T s, const SimdComplex& v) noexcept { return {s * v.re, s * v.im}; }
+    friend inline SimdComplex operator+(T s, const SimdComplex& v) noexcept {
+        return {s + v.re, v.im};
+    }
+    friend inline SimdComplex operator-(T s, const SimdComplex& v) noexcept {
+        return {s - v.re, -v.im};
+    }
+    friend inline SimdComplex operator*(T s, const SimdComplex& v) noexcept {
+        return {s * v.re, s * v.im};
+    }
     friend inline SimdComplex operator/(T s, const SimdComplex& v) noexcept {
         T den = v.re * v.re + v.im * v.im;
         return {(s * v.re) / den, (-s * v.im) / den};
     }
 
     // -------------------- 辅助 --------------------
-    inline SimdComplex conj() const noexcept { return {re, -im}; }
+    inline SimdComplex conj() const noexcept {
+        return {re, -im};
+    }
 };
 using Complex128 = SimdComplex<Float128>;
 using Complex256 = SimdComplex<Float256>;
