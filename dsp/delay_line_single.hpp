@@ -1,6 +1,7 @@
 #pragma once
 #include <vector>
 #include "../simd.hpp"
+#include "../align_allocator.hpp"
 
 namespace pluginshared::dsp {
 template <simd::IsSimdFloat SimdT>
@@ -80,7 +81,7 @@ public:
         return y0 + t * (d0 + t * (m0 + t * m1));
     }
 private:
-    std::vector<SimdT> buffer_;
+    std::vector<SimdT, simd::AlignedAllocator<SimdT, alignof(SimdT)>> buffer_;
     int wpos_{};
     int mask_{};
 };
