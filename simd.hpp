@@ -39,6 +39,12 @@ concept IsSimdFloat = std::is_same_v<T, Float128> || std::is_same_v<T, Float256>
 template <class T>
 static constexpr size_t LaneSize = sizeof(T) / sizeof(float);
 
+static constexpr struct ISSE2 {} iSSE2;
+static constexpr struct ISSE4 {} iSSE4;
+static constexpr struct IAVX {} iAVX;
+static constexpr struct IAVX2 {} iAVX2;
+static constexpr struct INEON {} iNEON;
+
 // ----------------------------------------
 // extension?
 // ----------------------------------------
