@@ -39,11 +39,13 @@ concept IsSimdFloat = std::is_same_v<T, Float128> || std::is_same_v<T, Float256>
 template <class T>
 static constexpr size_t LaneSize = sizeof(T) / sizeof(float);
 
+// clang-format off
 static constexpr struct ISSE2 {} iSSE2;
 static constexpr struct ISSE4 {} iSSE4;
 static constexpr struct IAVX {} iAVX;
 static constexpr struct IAVX2 {} iAVX2;
 static constexpr struct INEON {} iNEON;
+// clang-format on
 
 // ----------------------------------------
 // extension?
@@ -86,21 +88,33 @@ static inline Int256 FromSimde(simde__m256i x) noexcept {
     return std::bit_cast<Int256>(x);
 }
 
-static inline Int128 ToInt128(Float128 x) noexcept {
+[[deprecated]] static inline Int128 ToInt128(Float128 x) noexcept {
     return __builtin_convertvector(x, Int128);
 }
-static inline Int256 ToInt256(Float256 x) noexcept {
+[[deprecated]] static inline Int256 ToInt256(Float256 x) noexcept {
+    return __builtin_convertvector(x, Int256);
+}
+static inline Int128 ToInt(Float128 x) noexcept {
+    return __builtin_convertvector(x, Int128);
+}
+static inline Int256 ToInt(Float256 x) noexcept {
     return __builtin_convertvector(x, Int256);
 }
 
-static inline Float128 ToFloat128(Int128 x) noexcept {
+[[deprecated]] static inline Float128 ToFloat128(Int128 x) noexcept {
     return __builtin_convertvector(x, Float128);
 }
-static inline Float256 ToFloat256(Int256 x) noexcept {
+[[deprecated]] static inline Float256 ToFloat256(Int256 x) noexcept {
+    return __builtin_convertvector(x, Float256);
+}
+static inline Float128 ToFloat(Int128 x) noexcept {
+    return __builtin_convertvector(x, Float128);
+}
+static inline Float256 ToFloat(Int256 x) noexcept {
     return __builtin_convertvector(x, Float256);
 }
 
-static inline Float128 Frac128(Float128 x_) noexcept {
+[[deprecated]] static inline Float128 Frac128(Float128 x_) noexcept {
 #if defined(SIMDE_X86_SSE4_1_NATIVE) || defined(SIMDE_X86_AVX_NATIVE) || defined(SIMDE_ARM_NEON_A64V8_NATIVE)
     auto x = ToSimde(x_);
     return FromSimde(simde_mm_sub_ps(x, simde_mm_floor_ps(x)));
@@ -110,7 +124,23 @@ static inline Float128 Frac128(Float128 x_) noexcept {
     return Float128{x_[0] - floorf(x_[0]), x_[1] - floorf(x_[1]), x_[2] - floorf(x_[2]), x_[3] - floorf(x_[3])};
 #endif
 }
-static inline Float256 Frac256(Float256 x) noexcept {
+[[deprecated]] static inline Float256 Frac256(Float256 x) noexcept {
+    auto x_ = ToSimde(x);
+    simde__m256 i = simde_mm256_floor_ps(x_);
+    auto s = simde_mm256_sub_ps(x_, i);
+    return FromSimde(s);
+}
+static inline Float128 Frac(Float128 x_) noexcept {
+#if defined(SIMDE_X86_SSE4_1_NATIVE) || defined(SIMDE_X86_AVX_NATIVE) || defined(SIMDE_ARM_NEON_A64V8_NATIVE)
+    auto x = ToSimde(x_);
+    return FromSimde(simde_mm_sub_ps(x, simde_mm_floor_ps(x)));
+#elif defined(SIMDE_X86_SSE2_NATIVE) || defined(SIMDE_ARM_NEON_NATIVE)
+    return x_ - ToFloat(ToInt(x_));
+#else
+    return Float128{x_[0] - floorf(x_[0]), x_[1] - floorf(x_[1]), x_[2] - floorf(x_[2]), x_[3] - floorf(x_[3])};
+#endif
+}
+static inline Float256 Frac(Float256 x) noexcept {
     auto x_ = ToSimde(x);
     simde__m256 i = simde_mm256_floor_ps(x_);
     auto s = simde_mm256_sub_ps(x_, i);
@@ -124,10 +154,16 @@ static inline Float256 Loadu256(const float* ptr) noexcept {
     return Float256{ptr[0], ptr[1], ptr[2], ptr[3], ptr[4], ptr[5], ptr[6], ptr[7]};
 }
 
-static inline Float128 Max128(Float128 a, Float128 b) noexcept {
+[[deprecated]] static inline Float128 Max128(Float128 a, Float128 b) noexcept {
     return a > b ? a : b;
 }
-static inline Float256 Max256(Float256 a, Float256 b) noexcept {
+[[deprecated]] static inline Float256 Max256(Float256 a, Float256 b) noexcept {
+    return a > b ? a : b;
+}
+static inline Float128 Max(Float128 a, Float128 b) noexcept {
+    return a > b ? a : b;
+}
+static inline Float256 Max(Float256 a, Float256 b) noexcept {
     return a > b ? a : b;
 }
 
@@ -193,6 +229,14 @@ static inline float ReduceAdd(Float128 x) noexcept {
 }
 static inline float ReduceAdd(Float256 x) noexcept {
     return x[0] + x[1] + x[2] + x[3] + x[4] + x[5] + x[6] + x[7];
+}
+
+static inline Float128 Tan(Float128 x) noexcept {
+    return Float128{std::tan(x[0]), std::tan(x[1]), std::tan(x[2]), std::tan(x[3])};
+}
+static inline Float256 Tan(Float256 x) noexcept {
+    return Float256{std::tan(x[0]), std::tan(x[1]), std::tan(x[2]), std::tan(x[3]),
+                    std::tan(x[4]), std::tan(x[5]), std::tan(x[6]), std::tan(x[7])};
 }
 
 // ----------------------------------------
