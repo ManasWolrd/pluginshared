@@ -22,7 +22,9 @@ public:
         preset_menu_.setLookAndFeel(ui::GetLookAndFeel());
         loadPresetList();
 
-        options_button_.setButtonText("info");
+        juce::String plugin_name;
+        plugin_name << JucePlugin_Name << ' ' << JucePlugin_VersionString;
+        options_button_.setButtonText(plugin_name);
         addAndMakeVisible(options_button_);
         options_button_.addListener(this);
     }

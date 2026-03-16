@@ -44,8 +44,9 @@ public:
     }
 
     juce::String GetPluginReleaseUrl() {
-        return juce::String::formatted("https://github.com/%s/%s/releases/latest", github_info_.owner,
-            github_info_.repo_name);
+        juce::String s{"https://github.com/"};
+        s << github_info_.owner.data() << "/" << github_info_.repo_name.data() << "/releases/latest";
+        return s;
     }
 private:
     class UpdateThread : public juce::Thread {
@@ -66,8 +67,8 @@ private:
                 juce::URL url(api_url);
 
                 auto op =
-                    juce::URL::InputStreamOptions{juce::URL::ParameterHandling::inAddress}
-                        .withConnectionTimeoutMs(kNetworkTimeout);
+                    juce::URL::InputStreamOptions{juce::URL::ParameterHandling::inAddress}.withConnectionTimeoutMs(
+                        kNetworkTimeout);
                 auto stream = url.createInputStream(op);
 
                 if (!stream) {
@@ -102,8 +103,7 @@ private:
                     if (latest_version != current_version) {
                         juce::String msg;
                         msg << "New version available: " << latest_version << "\n"
-                            << "Current version: " << current_version
-                            << "\n\n"
+                            << "Current version: " << current_version << "\n\n"
                             << json.getProperty("body", "What? No update description?").toString();
                         SetUpdateMessage(msg);
                         SetButtonLabel("ok");
