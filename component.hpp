@@ -74,6 +74,9 @@ public:
             g.drawRect(bound2);
             // g.drawText(s.getTextFromValue(s.getValue()), bound2, juce::Justification::centred);
         }
+        else if (style == juce::Slider::SliderStyle::LinearBarVertical) {
+            
+        }
         else {
             juce::LookAndFeel_V4::drawLinearSlider(g, x, y, width, height, sliderPos, minSliderPos, maxSliderPos, style,
                                                    s);
@@ -379,6 +382,86 @@ public:
     }
 
     ~FlatSlider() override {
+        slider.setLookAndFeel(nullptr);
+        attach_ = nullptr;
+        slider_menu_.menu_.setLookAndFeel(nullptr);
+    }
+
+    void resized() override {
+        if (title_layout == TitleLayout::None) {
+            slider.setBounds(getLocalBounds());
+        }
+        else if (title_layout == TitleLayout::Top) {
+            auto b = getLocalBounds();
+            label.setBounds(b.removeFromTop(static_cast<int>(label.getFont().getHeight())));
+            slider.setBounds(b);
+        }
+        else {
+            auto font = label.getFont();
+            auto width = 1.2f * juce::TextLayout::getStringWidth(font, label.getText());
+            auto b = getLocalBounds();
+            label.setBounds(b.removeFromLeft(static_cast<int>(width)));
+            slider.setBounds(b);
+        }
+    }
+
+    void BindParam(juce::AudioProcessorValueTreeState& apvts, juce::StringRef id) {
+        BindParam(apvts.getParameter(id));
+    }
+
+    void BindParam(juce::RangedAudioParameter* param) {
+        jassert(param != nullptr);
+        attach_ = nullptr;
+        attach_ = std::make_unique<juce::SliderParameterAttachment>(*param, slider);
+    }
+
+    std::function<void(juce::PopupMenu&)>& OnMenuShowup() {
+        return slider_menu_.on_menu_showup;
+    }
+
+    void SetTitleLayout(TitleLayout layout) {
+        if (title_layout == layout) return;
+        title_layout = layout;
+        label.setVisible(layout != TitleLayout::None);
+        resized();
+    }
+
+    juce::Slider slider;
+    juce::Label label;
+private:
+    TitleLayout title_layout{TitleLayout::Top};
+    std::unique_ptr<juce::SliderParameterAttachment> attach_;
+    SliderMenu slider_menu_;
+};
+
+// ----------------------------------------
+// flat numeric box
+// ----------------------------------------
+class FlatNumericBox : public juce::Component {
+public:
+    enum class TitleLayout {
+        None,
+        Left,
+        Top
+    };
+
+    FlatNumericBox(juce::StringRef title = "unname", TitleLayout title_place = TitleLayout::Left)
+        : slider_menu_(slider) {
+        slider.setSliderStyle(juce::Slider::SliderStyle::LinearBarVertical);
+        slider.setLookAndFeel(GetLookAndFeel());
+        slider.addMouseListener(&slider_menu_, true);
+        addAndMakeVisible(slider);
+        slider_menu_.menu_.setLookAndFeel(GetLookAndFeel());
+
+        label.setText(title, juce::dontSendNotification);
+        label.setJustificationType(juce::Justification::centredLeft);
+        label.setColour(juce::Label::ColourIds::textColourId, juce::Colours::black);
+        addAndMakeVisible(label);
+
+        SetTitleLayout(title_place);
+    }
+
+    ~FlatNumericBox() override {
         slider.setLookAndFeel(nullptr);
         attach_ = nullptr;
         slider_menu_.menu_.setLookAndFeel(nullptr);
