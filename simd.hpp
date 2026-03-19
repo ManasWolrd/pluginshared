@@ -150,14 +150,14 @@ static inline Float256 BroadcastF256(float i) noexcept {
 static inline Float256 Combine(Float128 lo, Float128 hi) noexcept {
     return Float256{lo[0], lo[1], lo[2], lo[3], hi[0], hi[1], hi[2], hi[3]};
 }
-[[gnu::always_inline]] static inline std::array<Float128, 2> Break(Float256 x) noexcept {
+static inline std::array<Float128, 2> Break(Float256 x) noexcept {
     return {
         Float128{x[0], x[1], x[2], x[3]},
         Float128{x[4], x[5], x[6], x[7]}
     };
 }
 
-[[gnu::always_inline]] static inline std::array<Float128, 4> Transpose(Float128 x0, Float128 x1, Float128 x2, Float128 x3) noexcept {
+static inline std::array<Float128, 4> Transpose(Float128 x0, Float128 x1, Float128 x2, Float128 x3) noexcept {
     Float128 tmp0 = Shuffle<Float128, 0, 4, 1, 5>(x0, x1); // row0[0], row1[0], row0[1], row1[1]
     Float128 tmp1 = Shuffle<Float128, 2, 6, 3, 7>(x0, x1); // row0[2], row1[2], row0[3], row1[3]
     Float128 tmp2 = Shuffle<Float128, 0, 4, 1, 5>(x2, x3); // row2[0], row3[0], row2[1], row3[1]
@@ -170,7 +170,7 @@ static inline Float256 Combine(Float128 lo, Float128 hi) noexcept {
 
     return {row0, row1, row2, row3};
 }
-[[gnu::always_inline]] static inline std::array<Float256, 4> Transpose256(Float128 a, Float128 b, Float128 c, Float128 d, Float128 e,
+static inline std::array<Float256, 4> Transpose256(Float128 a, Float128 b, Float128 c, Float128 d, Float128 e,
                                                    Float128 f, Float128 g, Float128 h) noexcept {
     Float256 x0 = Combine(a, e);
     Float256 x1 = Combine(b, f);
