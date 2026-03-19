@@ -62,9 +62,9 @@ public:
     }
 private:
     simd::Float128 GetRpos(simd::Float128 rpos) noexcept {
-        auto t = simd::Frac128(rpos);
+        auto t = simd::Frac(rpos);
         // we are at the -1 position[-1, 0, 1, 2]
-        auto irpos = simd::ToInt128(rpos) - 1;
+        auto irpos = simd::ToInt(rpos) - 1;
         irpos &= mask_;
 
 #ifndef SIMDE_X86_AVX2_NATIVE
@@ -95,9 +95,9 @@ private:
     }
 
     simd::Float256 GetRpos(simd::Float256 rpos) noexcept {
-        auto t = simd::Frac256(rpos);
+        auto t = simd::Frac(rpos);
         // we are at the -1 position[-1, 0, 1, 2]
-        auto irpos = simd::ToInt256(rpos) - 1;
+        auto irpos = simd::ToInt(rpos) - 1;
         irpos &= mask_;
 
 #ifndef SIMDE_X86_AVX2_NATIVE

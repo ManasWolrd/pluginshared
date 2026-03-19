@@ -88,12 +88,6 @@ static inline Int256 FromSimde(simde__m256i x) noexcept {
     return std::bit_cast<Int256>(x);
 }
 
-[[deprecated]] static inline Int128 ToInt128(Float128 x) noexcept {
-    return __builtin_convertvector(x, Int128);
-}
-[[deprecated]] static inline Int256 ToInt256(Float256 x) noexcept {
-    return __builtin_convertvector(x, Int256);
-}
 static inline Int128 ToInt(Float128 x) noexcept {
     return __builtin_convertvector(x, Int128);
 }
@@ -101,12 +95,6 @@ static inline Int256 ToInt(Float256 x) noexcept {
     return __builtin_convertvector(x, Int256);
 }
 
-[[deprecated]] static inline Float128 ToFloat128(Int128 x) noexcept {
-    return __builtin_convertvector(x, Float128);
-}
-[[deprecated]] static inline Float256 ToFloat256(Int256 x) noexcept {
-    return __builtin_convertvector(x, Float256);
-}
 static inline Float128 ToFloat(Int128 x) noexcept {
     return __builtin_convertvector(x, Float128);
 }
@@ -114,22 +102,6 @@ static inline Float256 ToFloat(Int256 x) noexcept {
     return __builtin_convertvector(x, Float256);
 }
 
-[[deprecated]] static inline Float128 Frac128(Float128 x_) noexcept {
-#if defined(SIMDE_X86_SSE4_1_NATIVE) || defined(SIMDE_X86_AVX_NATIVE) || defined(SIMDE_ARM_NEON_A64V8_NATIVE)
-    auto x = ToSimde(x_);
-    return FromSimde(simde_mm_sub_ps(x, simde_mm_floor_ps(x)));
-#elif defined(SIMDE_X86_SSE2_NATIVE) || defined(SIMDE_ARM_NEON_NATIVE)
-    return x_ - ToFloat128(ToInt128(x_));
-#else
-    return Float128{x_[0] - floorf(x_[0]), x_[1] - floorf(x_[1]), x_[2] - floorf(x_[2]), x_[3] - floorf(x_[3])};
-#endif
-}
-[[deprecated]] static inline Float256 Frac256(Float256 x) noexcept {
-    auto x_ = ToSimde(x);
-    simde__m256 i = simde_mm256_floor_ps(x_);
-    auto s = simde_mm256_sub_ps(x_, i);
-    return FromSimde(s);
-}
 static inline Float128 Frac(Float128 x_) noexcept {
 #if defined(SIMDE_X86_SSE4_1_NATIVE) || defined(SIMDE_X86_AVX_NATIVE) || defined(SIMDE_ARM_NEON_A64V8_NATIVE)
     auto x = ToSimde(x_);
@@ -154,12 +126,6 @@ static inline Float256 Loadu256(const float* ptr) noexcept {
     return Float256{ptr[0], ptr[1], ptr[2], ptr[3], ptr[4], ptr[5], ptr[6], ptr[7]};
 }
 
-[[deprecated]] static inline Float128 Max128(Float128 a, Float128 b) noexcept {
-    return a > b ? a : b;
-}
-[[deprecated]] static inline Float256 Max256(Float256 a, Float256 b) noexcept {
-    return a > b ? a : b;
-}
 static inline Float128 Max(Float128 a, Float128 b) noexcept {
     return a > b ? a : b;
 }
@@ -184,14 +150,14 @@ static inline Float256 BroadcastF256(float i) noexcept {
 static inline Float256 Combine(Float128 lo, Float128 hi) noexcept {
     return Float256{lo[0], lo[1], lo[2], lo[3], hi[0], hi[1], hi[2], hi[3]};
 }
-static inline std::array<Float128, 2> Break(Float256 x) noexcept {
+[[gnu::always_inline]] static inline std::array<Float128, 2> Break(Float256 x) noexcept {
     return {
         Float128{x[0], x[1], x[2], x[3]},
         Float128{x[4], x[5], x[6], x[7]}
     };
 }
 
-static inline std::array<Float128, 4> Transpose(Float128 x0, Float128 x1, Float128 x2, Float128 x3) noexcept {
+[[gnu::always_inline]] static inline std::array<Float128, 4> Transpose(Float128 x0, Float128 x1, Float128 x2, Float128 x3) noexcept {
     Float128 tmp0 = Shuffle<Float128, 0, 4, 1, 5>(x0, x1); // row0[0], row1[0], row0[1], row1[1]
     Float128 tmp1 = Shuffle<Float128, 2, 6, 3, 7>(x0, x1); // row0[2], row1[2], row0[3], row1[3]
     Float128 tmp2 = Shuffle<Float128, 0, 4, 1, 5>(x2, x3); // row2[0], row3[0], row2[1], row3[1]
@@ -204,7 +170,7 @@ static inline std::array<Float128, 4> Transpose(Float128 x0, Float128 x1, Float1
 
     return {row0, row1, row2, row3};
 }
-static inline std::array<Float256, 4> Transpose256(Float128 a, Float128 b, Float128 c, Float128 d, Float128 e,
+[[gnu::always_inline]] static inline std::array<Float256, 4> Transpose256(Float128 a, Float128 b, Float128 c, Float128 d, Float128 e,
                                                    Float128 f, Float128 g, Float128 h) noexcept {
     Float256 x0 = Combine(a, e);
     Float256 x1 = Combine(b, f);
