@@ -38,6 +38,19 @@ public:
         preset_menu_.setLookAndFeel(nullptr);
     }
 
+    void SetDspInstName(const char* name) {
+        if (name == nullptr) {
+            juce::String plugin_name;
+            plugin_name << JucePlugin_Name << ' ' << JucePlugin_VersionString;
+            options_button_.setButtonText(plugin_name);
+        }
+        else {
+            juce::String plugin_name;
+            plugin_name << JucePlugin_Name << ' ' << JucePlugin_VersionString << name;
+            options_button_.setButtonText(plugin_name);
+        }
+    }
+
     void mouseDown(const juce::MouseEvent& event) override {
         if (event.originalComponent != &preset_name_) return;
         preset_menu_.showMenuAsync(juce::PopupMenu::Options{}.withMousePosition(), [this](int id) {
