@@ -4,11 +4,119 @@
 #include "preset_manager.hpp"
 #include "update_gui.hpp"
 
+#if __has_include("BinaryData.h")
+#include "BinaryData.h"
+#define HAS_BINARY_DATA 1
+#else
+#define HAS_BINARY_DATA 0
+#endif
+
 namespace pluginshared {
 class PresetPanel
     : public juce::Component
     , juce::Button::Listener {
 public:
+    class TitleButton : public juce::Component {
+    public:
+        TitleButton() {
+            addAndMakeVisible(title_);
+            addAndMakeVisible(version_);
+            addAndMakeVisible(simd_inst_);
+
+#if HAS_BINARY_DATA
+            static auto typeface =
+                juce::Typeface::createSystemTypefaceFor(BinaryData::FSEX300_ttf, BinaryData::FSEX300_ttfSize);
+            auto font = juce::FontOptions{typeface};
+            title_.setFont(font);
+#endif
+
+            title_.addMouseListener(this, true);
+            version_.addMouseListener(this, true);
+            simd_inst_.addMouseListener(this, true);
+
+            SetLabelColor(false);
+        }
+
+        ~TitleButton() override {
+            title_.removeMouseListener(this);
+            version_.removeMouseListener(this);
+            simd_inst_.removeMouseListener(this);
+        }
+
+        void paint(juce::Graphics& g) override {
+            auto bounds = getLocalBounds().toFloat();
+            auto center = bounds.getCentre();
+
+            float radius = center.getDistanceFrom(bounds.getTopLeft());
+
+            juce::ColourGradient gradient(ui::light_green_bg, center.getX(), center.getY(), ui::green_bg,
+                                          center.getX() + radius, center.getY(), true);
+            g.setGradientFill(gradient);
+            g.fillAll();
+        }
+
+        juce::Rectangle<int> GetBoundsFit(int h) {
+            float height = static_cast<float>(h);
+            float title_w = juce::TextLayout::getStringWidth(title_.getFont().withHeight(height), title_.getText());
+            float version_w =
+                juce::TextLayout::getStringWidth(version_.getFont().withHeight(height / 2), version_.getText());
+            float simd_w =
+                juce::TextLayout::getStringWidth(simd_inst_.getFont().withHeight(height / 2), simd_inst_.getText());
+            float post_w = std::max(simd_w, version_w);
+            float w = title_w + post_w;
+            return juce::Rectangle<float>{0.0f, 0.0f, w, height}.toNearestInt();
+        }
+
+        void resized() override {
+            auto b = getLocalBounds().toFloat();
+            float height = b.getHeight();
+            float font_heiht = height * 0.9f;
+            title_.setFont(title_.getFont().withHeight(font_heiht));
+            version_.setFont(version_.getFont().withHeight(height / 2));
+            simd_inst_.setFont(simd_inst_.getFont().withHeight(height / 2));
+
+            float title_w = juce::TextLayout::getStringWidth(title_.getFont(), title_.getText());
+            title_.setBounds(b.removeFromLeft(title_w).toNearestInt());
+
+            version_.setBounds(b.removeFromTop(b.getHeight() / 2).toNearestInt());
+            simd_inst_.setBounds(b.toNearestInt());
+        }
+
+        void mouseDown(const juce::MouseEvent& e) override {
+            juce::ignoreUnused(e);
+
+            if (on_click_) {
+                on_click_();
+            }
+        }
+
+        void mouseEnter(const juce::MouseEvent& e) override {
+            juce::ignoreUnused(e);
+            SetLabelColor(true);
+        }
+
+        void mouseExit(const juce::MouseEvent& e) override {
+            juce::ignoreUnused(e);
+            SetLabelColor(false);
+        }
+
+        void SetLabelColor(bool hover) {
+            juce::Colour color = ui::black_bg;
+            if (hover) {
+                color = ui::line_fore;
+            }
+
+            title_.setColour(juce::Label::ColourIds::textColourId, color);
+            version_.setColour(juce::Label::ColourIds::textColourId, color);
+            simd_inst_.setColour(juce::Label::ColourIds::textColourId, color);
+        }
+
+        std::function<void()> on_click_;
+        juce::Label title_;
+        juce::Label version_;
+        juce::Label simd_inst_;
+    };
+
     PresetPanel(PresetManager& pm)
         : presetManager(pm) {
         configureButton(saveButton, "Save");
@@ -22,11 +130,48 @@ public:
         preset_menu_.setLookAndFeel(ui::GetLookAndFeel());
         loadPresetList();
 
-        juce::String plugin_name;
-        plugin_name << JucePlugin_Name << ' ' << JucePlugin_VersionString;
-        options_button_.setButtonText(plugin_name);
+        options_button_.title_.setText(JucePlugin_Name, juce::dontSendNotification);
+        options_button_.version_.setText(JucePlugin_VersionString, juce::dontSendNotification);
+        options_button_.on_click_ = [this] {
+            juce::PopupMenu menu;
+
+            juce::String plugin_name;
+            plugin_name << JucePlugin_Name << ' ' << JucePlugin_VersionString;
+            menu.addItem(plugin_name, false, false, [] {});
+
+            if (presetManager.GetUpdateData().HaveNewVersion()) {
+                menu.addItem("new version", [url = juce::URL{presetManager.GetUpdateData().GetPluginReleaseUrl()}] {
+                    url.launchInDefaultBrowser();
+                });
+            }
+            else {
+                menu.addItem("check update", [this] { CheckUpdate(); });
+            }
+
+            menu.addItem("init patch", [this] {
+                preset_name_.setText(PresetManager::kDefaultPresetName, juce::dontSendNotification);
+                presetManager.loadDefaultPatch();
+            });
+
+            // scale
+            juce::PopupMenu scale_menu;
+            scale_menu.addItem("100%", [this] { TrySetParentScale(1.0f); });
+            scale_menu.addItem("125%", [this] { TrySetParentScale(1.25f); });
+            scale_menu.addItem("150%", [this] { TrySetParentScale(1.5f); });
+            scale_menu.addItem("175%", [this] { TrySetParentScale(1.75f); });
+            scale_menu.addItem("200%", [this] { TrySetParentScale(2.0f); });
+            scale_menu.addItem("300%", [this] { TrySetParentScale(3.0f); });
+            menu.addSubMenu("scale", std::move(scale_menu));
+
+            if (on_menu_showup) {
+                on_menu_showup(menu);
+            }
+
+            juce::PopupMenu::Options op;
+            menu.setLookAndFeel(ui::GetLookAndFeel());
+            menu.showMenuAsync(op.withMousePosition());
+        };
         addAndMakeVisible(options_button_);
-        options_button_.addListener(this);
     }
 
     ~PresetPanel() override {
@@ -39,15 +184,8 @@ public:
     }
 
     void SetDspInstName(const char* name) {
-        if (name == nullptr) {
-            juce::String plugin_name;
-            plugin_name << JucePlugin_Name << ' ' << JucePlugin_VersionString;
-            options_button_.setButtonText(plugin_name);
-        }
-        else {
-            juce::String plugin_name;
-            plugin_name << JucePlugin_Name << ' ' << JucePlugin_VersionString << name;
-            options_button_.setButtonText(plugin_name);
+        if (name != nullptr) {
+            options_button_.simd_inst_.setText(name, juce::dontSendNotification);
         }
     }
 
@@ -80,7 +218,7 @@ public:
     void resized() override {
         auto container = getLocalBounds();
         options_button_.setBounds(
-            container.removeFromLeft(GetButtonWidth(options_button_, container.getHeight())).reduced(2));
+            container.removeFromLeft(options_button_.GetBoundsFit(container.getHeight()).getWidth()));
 
         deleteButton.setBounds(
             container.removeFromRight(GetButtonWidth(deleteButton, container.getHeight())).reduced(2));
@@ -126,45 +264,6 @@ private:
             loadPresetList();
             preset_name_.setText(presetManager.getCurrentPreset(), juce::dontSendNotification);
         }
-        else if (button == &options_button_) {
-            juce::PopupMenu menu;
-
-            juce::String plugin_name;
-            plugin_name << JucePlugin_Name << ' ' << JucePlugin_VersionString;
-            menu.addItem(plugin_name, false, false, [] {});
-
-            if (presetManager.GetUpdateData().HaveNewVersion()) {
-                menu.addItem("new version", [url = juce::URL{presetManager.GetUpdateData().GetPluginReleaseUrl()}] {
-                    url.launchInDefaultBrowser();
-                });
-            }
-            else {
-                menu.addItem("check update", [this] { CheckUpdate(); });
-            }
-
-            menu.addItem("init patch", [this] {
-                preset_name_.setText(PresetManager::kDefaultPresetName, juce::dontSendNotification);
-                presetManager.loadDefaultPatch();
-            });
-
-            // scale
-            juce::PopupMenu scale_menu;
-            scale_menu.addItem("100%", [this] { TrySetParentScale(1.0f); });
-            scale_menu.addItem("125%", [this] { TrySetParentScale(1.25f); });
-            scale_menu.addItem("150%", [this] { TrySetParentScale(1.5f); });
-            scale_menu.addItem("175%", [this] { TrySetParentScale(1.75f); });
-            scale_menu.addItem("200%", [this] { TrySetParentScale(2.0f); });
-            scale_menu.addItem("300%", [this] { TrySetParentScale(3.0f); });
-            menu.addSubMenu("scale", std::move(scale_menu));
-
-            if (on_menu_showup) {
-                on_menu_showup(menu);
-            }
-
-            juce::PopupMenu::Options op;
-            menu.setLookAndFeel(ui::GetLookAndFeel());
-            menu.showMenuAsync(op.withMousePosition());
-        }
     }
 
     void TrySetParentScale(float scale) {
@@ -203,7 +302,7 @@ private:
     juce::Label preset_name_{"", PresetManager::kDefaultPresetName};
     juce::PopupMenu preset_menu_;
     std::unique_ptr<juce::FileChooser> fileChooser;
-    ui::FlatButton options_button_;
+    TitleButton options_button_;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PresetPanel)
 };
