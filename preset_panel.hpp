@@ -187,6 +187,10 @@ public:
         if (name != nullptr) {
             options_button_.simd_inst_.setText(name, juce::dontSendNotification);
         }
+        else {
+            options_button_.simd_inst_.setText("unsupport cpu", juce::dontSendNotification);
+            options_button_.simd_inst_.setColour(juce::Label::ColourIds::textColourId, juce::Colours::red);
+        }
     }
 
     void mouseDown(const juce::MouseEvent& event) override {
