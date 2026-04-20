@@ -1,6 +1,7 @@
 #pragma once
 #include <array>
 #include <bit>
+#include <complex>
 #include <cstddef>
 #include <type_traits>
 
@@ -303,9 +304,51 @@ struct SimdComplex {
         return {(s * v.re) / den, (-s * v.im) / den};
     }
 
+    // -------------------- std复数与复数 --------------------
+    friend inline SimdComplex operator+(std::complex<float> s, const SimdComplex& v) noexcept {
+        return {s.real() + v.re, s.imag() + v.im};
+    }
+    friend inline SimdComplex operator-(std::complex<float> s, const SimdComplex& v) noexcept {
+        return {s.real() - v.re, s.imag() - v.im};
+    }
+    friend inline SimdComplex operator*(std::complex<float> s, const SimdComplex& v) noexcept {
+        float sr = s.real();
+        float si = s.imag();
+        return {sr * v.re - si * v.im, sr * v.im + si * v.re};
+    }
+    friend inline SimdComplex operator/(std::complex<float> s, const SimdComplex& v) noexcept {
+        float sr = s.real();
+        float si = s.imag();
+        T den = v.re * v.re + v.im * v.im;
+        return {(sr * v.re + si * v.im) / den, (si * v.re - sr * v.im) / den};
+    }
+
+    // -------------------- 复数与std复数 --------------------
+    friend inline SimdComplex operator+(const SimdComplex& v, std::complex<float> s) noexcept {
+        return {v.re + s.real(), v.im + s.imag()};
+    }
+    friend inline SimdComplex operator-(const SimdComplex& v, std::complex<float> s) noexcept {
+        return {v.re - s.real(), v.im - s.imag()};
+    }
+    friend inline SimdComplex operator*(const SimdComplex& v, std::complex<float> s) noexcept {
+        float sr = s.real();
+        float si = s.imag();
+        return {v.re * sr - v.im * si, v.re * si + v.im * sr};
+    }
+    friend inline SimdComplex operator/(const SimdComplex& v, std::complex<float> s) noexcept {
+        float sr = s.real();
+        float si = s.imag();
+        T den = sr * sr + si * si;
+        return {(v.re * sr + v.im * si) / den, (v.im * sr - v.re * si) / den};
+    }
+
     // -------------------- 辅助 --------------------
     inline SimdComplex conj() const noexcept {
         return {re, -im};
+    }
+
+    inline std::complex<float> ReduceAdd() const noexcept {
+        return {simd::ReduceAdd(re), simd::ReduceAdd(im)};
     }
 };
 using Complex128 = SimdComplex<Float128>;
