@@ -39,6 +39,11 @@ public:
                 attr.tempo_snap = !attr.tempo_snap;
                 sync_type_attach_->setValueAsCompleteGesture(static_cast<float>(std::bit_cast<int>(attr)));
             });
+
+            menu.addSeparator();
+            menu.addItem("reset phase", [this, &lfo_state]() {
+                lfo_state.TryResetPhase(reset_phase_);
+            });
         };
 
         freq_dial_.slider.setDoubleClickReturnValue(true, lfo_state.GetFreqAttribute().tempo_sync
@@ -51,8 +56,13 @@ public:
         freq_dial_.setBounds(b);
     }
 
+    void SetResetPhase(float phase) {
+        reset_phase_ = phase;
+    }
+
     ui::Dial freq_dial_;
 private:
     std::unique_ptr<juce::ParameterAttachment> sync_type_attach_;
+    float reset_phase_{};
 };
 } // namespace ui

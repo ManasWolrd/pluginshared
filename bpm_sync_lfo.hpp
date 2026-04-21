@@ -82,63 +82,6 @@ public:
         default_is_free_ = default_is_free;
     }
 
-    struct LfoInfo {
-        float lfo_freq;
-        float lfo_phase;
-    };
-    [[deprecated]] LfoInfo SyncBpm(juce::AudioPlayHead* head, float phase01) {
-        float fbpm = 120.0f;
-        float fppq = 0.0f;
-        bool sync_lfo = false;
-        if (head != nullptr) {
-            auto pos = head->getPosition();
-            if (auto bpm = pos->getBpm(); bpm) {
-                fbpm = static_cast<float>(*bpm);
-            }
-            if (auto ppq = pos->getPpqPosition(); ppq) {
-                fppq = static_cast<float>(*ppq);
-                sync_lfo = true;
-            }
-            if (!pos->getIsPlaying()) {
-                sync_lfo = false;
-            }
-        }
-
-        float lfo_freq = 0.0f;
-        FreqAttrubute freq_attr = GetFreqAttribute();
-        if (!freq_attr.tempo_sync) {
-            lfo_freq = free_freq_range_.convertFrom0to1(param_freq->get());
-            sync_lfo = false;
-        }
-        else {
-            if (!freq_attr.ppq_sync) {
-                sync_lfo = false;
-            }
-
-            float findex =
-                std::lerp(static_cast<float>(tempo_begin_idx_), static_cast<float>(tempo_end_idx_), param_freq->get());
-            int index = static_cast<int>(findex);
-            index = std::clamp(index, tempo_begin_idx_, tempo_end_idx_);
-
-            float sync_rate = kRateMulTable[static_cast<size_t>(index)];
-            if (!freq_attr.tempo_snap) {
-                int nindex = std::min(index + 1, tempo_end_idx_);
-                float next_rate = kRateMulTable[static_cast<size_t>(nindex)];
-                sync_rate = std::lerp(sync_rate, next_rate, findex - static_cast<float>(index));
-            }
-
-            float sync_phase = sync_rate * fppq;
-            sync_phase -= std::floor(sync_phase);
-            if (sync_lfo) {
-                phase01 = sync_phase;
-            }
-
-            lfo_freq = sync_rate * fbpm / 60.0f;
-        }
-
-        return LfoInfo{lfo_freq, phase01};
-    }
-
     struct LfoInfo2 {
         float lfo_freq;
         float lfo_phase;
@@ -191,6 +134,11 @@ public:
             lfo_phase = sync_phase;
 
             lfo_freq = sync_rate * fbpm / 60.0f;
+        }
+
+        if (should_reset_phase_.exchange(false, std::memory_order_acquire)) {
+            lfo_phase = reseted_phase_;
+            sync_lfo = true;
         }
 
         return LfoInfo2{lfo_freq, lfo_phase, sync_lfo};
@@ -302,6 +250,11 @@ public:
         return val01;
     }
 
+    void TryResetPhase(float phase) {
+        reseted_phase_ = phase;
+        should_reset_phase_.store(true, std::memory_order_release);
+    }
+
     juce::AudioParameterFloat* param_freq{};
     juce::AudioParameterInt* param_type{};
 private:
@@ -322,5 +275,8 @@ private:
     float default_free_hz_;
     int default_tempo_idx_;
     bool default_is_free_;
+
+    float reseted_phase_{};
+    std::atomic<bool> should_reset_phase_{};
 };
 } // namespace pluginshared
