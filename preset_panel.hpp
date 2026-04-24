@@ -148,11 +148,6 @@ public:
                 menu.addItem("check update", [this] { CheckUpdate(); });
             }
 
-            menu.addItem("init patch", [this] {
-                preset_name_.setText(PresetManager::kDefaultPresetName, juce::dontSendNotification);
-                presetManager.loadDefaultPatch();
-            });
-
             // scale
             juce::PopupMenu scale_menu;
             scale_menu.addItem("100%", [this] { TrySetParentScale(1.0f); });
@@ -289,6 +284,9 @@ private:
         const auto& allPresets = presetManager.getAllPresets();
         preset_menu_.clear();
         preset_menu_.addItem(1, "init patch");
+        preset_menu_.addItem("rescan", [this] {
+            loadPresetList();
+        });
         preset_menu_.addSeparator();
         for (int id = 2; const auto& name : allPresets) {
             preset_menu_.addItem(id++, name);

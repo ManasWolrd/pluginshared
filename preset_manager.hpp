@@ -6,15 +6,13 @@ namespace pluginshared {
 /**
  * @note must create after building AudioProcessorValueTreeState
  */
-class PresetManager : juce::ValueTree::Listener
-{
+class PresetManager : juce::ValueTree::Listener {
 public:
-    inline static const juce::File defaultDirectory{ juce::File::getSpecialLocation(
-    juce::File::SpecialLocationType::userDocumentsDirectory)
-        .getChildFile(JucePlugin_Manufacturer)
-        .getChildFile(JucePlugin_Name)
-    };
-    inline static const juce::String extension{"preset"};
+    inline static const juce::File defaultDirectory{
+        juce::File::getSpecialLocation(juce::File::SpecialLocationType::userDocumentsDirectory)
+            .getChildFile(JucePlugin_Manufacturer)
+            .getChildFile(JucePlugin_Name)};
+    inline static const juce::String extension{"xml"};
     inline static const juce::String presetNameProperty{"presetName"};
     inline static const juce::String kVersionProperty{"version"};
     inline static const juce::String kDefaultPresetName = "default";
@@ -22,17 +20,21 @@ public:
     PresetManager(juce::AudioProcessorValueTreeState& apvts, juce::AudioProcessor& p, UpdateData::GithubInfo info)
         : valueTreeState(apvts)
         , processor_(p)
-        , update_data_(info)
-    {
+        , update_data_(info) {
         // Create a default Preset Directory, if it doesn't exist
-        if (!defaultDirectory.exists())
-        {
+        if (!defaultDirectory.exists()) {
             const auto result = defaultDirectory.createDirectory();
-            if (result.failed())
-            {
+            if (result.failed()) {
                 DBG("Could not create preset directory: " + result.getErrorMessage());
-                jassertfalse;
             }
+        }
+
+        // Migrate old .preset files to .xml
+        const auto oldFiles =
+            defaultDirectory.findChildFiles(juce::File::TypesOfFileToFind::findFiles, false, "*.preset");
+        for (const auto& f : oldFiles) {
+            const auto newFile = f.getParentDirectory().getChildFile(f.getFileNameWithoutExtension() + "." + extension);
+            f.moveFileTo(newFile);
         }
 
         apvts.state.setProperty(presetNameProperty, kDefaultPresetName, nullptr);
@@ -43,63 +45,53 @@ public:
         p.getCurrentProgramStateInformation(default_state_block_);
     }
 
-    void savePreset(const juce::String& presetName)
-    {
-        if (presetName.isEmpty() || presetName == kDefaultPresetName)
-            return;
+    void savePreset(const juce::String& presetName) {
+        if (presetName.isEmpty() || presetName == kDefaultPresetName) return;
 
         currentPreset.setValue(presetName);
 
         juce::MemoryBlock block;
         processor_.getStateInformation(block);
-        const auto presetFile = defaultDirectory.getChildFile(presetName + "." + extension);
-        if (presetFile.existsAsFile()) {
-            presetFile.deleteFile();
+        const auto newFile = defaultDirectory.getChildFile(presetName + "." + extension);
+        if (newFile.existsAsFile()) {
+            newFile.deleteFile();
         }
 
-        juce::FileOutputStream stream{presetFile};
-        if (!stream.write(block.getData(), block.getSize()))
-        {
-            DBG("Could not create preset file: " + presetFile.getFullPathName());
-            jassertfalse;
+        juce::FileOutputStream stream{newFile};
+        if (!stream.write(block.getData(), block.getSize())) {
+            DBG("Could not create preset file: " + newFile.getFullPathName());
         }
     }
 
-    void deletePreset(const juce::String& presetName)
-    {
-        if (presetName.isEmpty() || presetName == kDefaultPresetName)
-            return;
+    void deletePreset(const juce::String& presetName) {
+        if (presetName.isEmpty() || presetName == kDefaultPresetName) return;
 
         const auto presetFile = defaultDirectory.getChildFile(presetName + "." + extension);
-        if (!presetFile.existsAsFile())
-        {
-            DBG("Preset file " + presetFile.getFullPathName() + " does not exist");
-            jassertfalse;
+        if (!presetFile.existsAsFile()) {
+            DBG("Preset file does not exist for: " + presetName);
+
             return;
         }
-        if (!presetFile.deleteFile())
-        {
+        if (!presetFile.deleteFile()) {
             DBG("Preset file " + presetFile.getFullPathName() + " could not be deleted");
-            jassertfalse;
+
             return;
         }
         currentPreset.setValue("*deleted*");
     }
 
-    void loadPreset(const juce::String& presetName)
-    {
+    void loadPreset(const juce::String& presetName) {
         if (presetName.isEmpty()) {
             return;
         }
 
         const auto presetFile = defaultDirectory.getChildFile(presetName + "." + extension);
-        if (!presetFile.existsAsFile())
-        {
-            DBG("Preset file " + presetFile.getFullPathName() + " does not exist");
-            jassertfalse;
+        if (!presetFile.existsAsFile()) {
+            DBG("Preset file does not exist for: " + presetName);
+
             return;
         }
-        // presetFile (XML) -> (ValueTree)
+
         juce::FileInputStream c{presetFile};
         if (c.failedToOpen()) {
             return;
@@ -112,8 +104,7 @@ public:
         currentPreset.setValue(presetName);
     }
 
-    std::pair<int, juce::String> loadNextPreset()
-    {
+    std::pair<int, juce::String> loadNextPreset() {
         const auto allPresets = getAllPresets();
         if (allPresets.isEmpty()) {
             return {-1, getCurrentPreset()};
@@ -124,8 +115,7 @@ public:
         return {nextIndex, allPresets[nextIndex]};
     }
 
-    std::pair<int, juce::String> loadPreviousPreset()
-    {
+    std::pair<int, juce::String> loadPreviousPreset() {
         const auto allPresets = getAllPresets();
         if (allPresets.isEmpty()) {
             return {-1, getCurrentPreset()};
@@ -136,25 +126,23 @@ public:
         return {previousIndex, allPresets[previousIndex]};
     }
 
-    juce::StringArray getAllPresets() const
-    {
+    juce::StringArray getAllPresets() const {
         juce::StringArray presets;
-        const auto fileArray = defaultDirectory.findChildFiles(
-            juce::File::TypesOfFileToFind::findFiles, false, "*." + extension);
-        for (const auto& file : fileArray)
-        {
+        const auto fileArray =
+            defaultDirectory.findChildFiles(juce::File::TypesOfFileToFind::findFiles, false, "*." + extension);
+        for (const auto& file : fileArray) {
             presets.add(file.getFileNameWithoutExtension());
         }
         return presets;
     }
 
-    juce::String getCurrentPreset() const
-    {
+    juce::String getCurrentPreset() const {
         return currentPreset.toString();
     }
 
     void loadDefaultPatch() {
-        processor_.setStateInformation(default_state_block_.getData(), static_cast<int>(default_state_block_.getSize()));
+        processor_.setStateInformation(default_state_block_.getData(),
+                                       static_cast<int>(default_state_block_.getSize()));
         if (external_load_default_operations) {
             external_load_default_operations();
         }
@@ -170,8 +158,7 @@ public:
      */
     std::function<void()> external_load_default_operations;
 private:
-    void valueTreeRedirected(juce::ValueTree& treeWhichHasBeenChanged) override
-    {
+    void valueTreeRedirected(juce::ValueTree& treeWhichHasBeenChanged) override {
         currentPreset.referTo(treeWhichHasBeenChanged.getPropertyAsValue(presetNameProperty, nullptr));
     }
 
@@ -184,4 +171,4 @@ private:
 
     friend class PresetPanel;
 };
-}
+} // namespace pluginshared
