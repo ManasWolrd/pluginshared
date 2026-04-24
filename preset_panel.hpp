@@ -191,18 +191,21 @@ public:
     void mouseDown(const juce::MouseEvent& event) override {
         if (event.originalComponent != &preset_name_) return;
         preset_menu_.showMenuAsync(juce::PopupMenu::Options{}.withMousePosition(), [this](int id) {
-            if (id == 1) {
+            if (id == kInitPatchMenuId) {
                 presetManager.loadDefaultPatch();
                 preset_name_.setText(PresetManager::kDefaultPresetName, juce::dontSendNotification);
             }
-            else if (id > 1) {
-                const auto& all_items = presetManager.getAllPresets();
-                int idx = id - 2;
-                if (idx >= all_items.size()) return;
-
-                const auto& name = all_items[idx];
-                presetManager.loadPreset(name);
-                preset_name_.setText(name, juce::dontSendNotification);
+            else if (id >= kFactoryMenuBaseId && id < kFactoryMenuBaseId + static_cast<int>(factory_menu_names_.size())) {
+                const int idx = id - kFactoryMenuBaseId;
+                if (presetManager.loadFactoryPresetByIndex(idx)) {
+                    preset_name_.setText(presetManager.getCurrentPreset(), juce::dontSendNotification);
+                }
+            }
+            else if (id >= kUserMenuBaseId && id < kUserMenuBaseId + static_cast<int>(user_menu_names_.size())) {
+                const int idx = id - kUserMenuBaseId;
+                if (presetManager.loadUserPresetByIndex(idx)) {
+                    preset_name_.setText(presetManager.getCurrentPreset(), juce::dontSendNotification);
+                }
             }
         });
     }
@@ -230,6 +233,8 @@ public:
     void paint(juce::Graphics& g) override {
         g.fillAll(ui::green_bg);
     }
+
+    void AddFactoryPreset();
 
     std::function<void(juce::PopupMenu&)> on_menu_showup;
 private:
@@ -281,16 +286,39 @@ private:
     void loadPresetList() {
         const auto currentPreset = presetManager.getCurrentPreset();
         preset_name_.setText(currentPreset, juce::dontSendNotification);
-        const auto& allPresets = presetManager.getAllPresets();
+
+        factory_menu_names_.clear();
+        user_menu_names_.clear();
+
+        auto factoryNames = presetManager.getFactoryPresetNames();
+        auto userNames = presetManager.getUserPresetNames();
+        factory_menu_names_.reserve(static_cast<size_t>(factoryNames.size()));
+        user_menu_names_.reserve(static_cast<size_t>(userNames.size()));
+        for (const auto& name : factoryNames) {
+            factory_menu_names_.push_back(name);
+        }
+        for (const auto& name : userNames) {
+            user_menu_names_.push_back(name);
+        }
+
         preset_menu_.clear();
-        preset_menu_.addItem(1, "init patch");
+        preset_menu_.addItem(kInitPatchMenuId, "init patch");
         preset_menu_.addItem("rescan", [this] {
             loadPresetList();
         });
         preset_menu_.addSeparator();
-        for (int id = 2; const auto& name : allPresets) {
-            preset_menu_.addItem(id++, name);
+
+        juce::PopupMenu factoryMenu;
+        for (int i = 0; i < static_cast<int>(factory_menu_names_.size()); ++i) {
+            factoryMenu.addItem(kFactoryMenuBaseId + i, factory_menu_names_[static_cast<size_t>(i)]);
         }
+        preset_menu_.addSubMenu("Factory", factoryMenu);
+
+        juce::PopupMenu userMenu;
+        for (int i = 0; i < static_cast<int>(user_menu_names_.size()); ++i) {
+            userMenu.addItem(kUserMenuBaseId + i, user_menu_names_[static_cast<size_t>(i)]);
+        }
+        preset_menu_.addSubMenu("User", userMenu);
     }
 
     void CheckUpdate() {
@@ -303,8 +331,14 @@ private:
     ui::FlatButton saveButton, deleteButton, previousPresetButton, nextPresetButton;
     juce::Label preset_name_{"", PresetManager::kDefaultPresetName};
     juce::PopupMenu preset_menu_;
+    std::vector<juce::String> factory_menu_names_;
+    std::vector<juce::String> user_menu_names_;
     std::unique_ptr<juce::FileChooser> fileChooser;
     TitleButton options_button_;
+
+    static constexpr int kInitPatchMenuId = 1;
+    static constexpr int kFactoryMenuBaseId = 1000;
+    static constexpr int kUserMenuBaseId = 2000;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PresetPanel)
 };

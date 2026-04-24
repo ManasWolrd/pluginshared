@@ -16,6 +16,13 @@ public:
     inline static const juce::String presetNameProperty{"presetName"};
     inline static const juce::String kVersionProperty{"version"};
     inline static const juce::String kDefaultPresetName = "default";
+    inline static const juce::String kFactoryPresetAutoNamePrefix = "Factory ";
+
+    enum class PresetScope {
+        kDefault,
+        kFactory,
+        kUser,
+    };
 
     PresetManager(juce::AudioProcessorValueTreeState& apvts, juce::AudioProcessor& p, UpdateData::GithubInfo info)
         : valueTreeState(apvts)
@@ -45,6 +52,10 @@ public:
         p.getCurrentProgramStateInformation(default_state_block_);
     }
 
+    void AddFactoryPreset(const char* xml, int xml_size, const juce::String& name) {
+        factory_presets_.push_back({name, xml, xml_size});
+    }
+
     void savePreset(const juce::String& presetName) {
         if (presetName.isEmpty() || presetName == kDefaultPresetName) return;
 
@@ -61,6 +72,10 @@ public:
         if (!stream.write(block.getData(), block.getSize())) {
             DBG("Could not create preset file: " + newFile.getFullPathName());
         }
+
+        current_scope_ = PresetScope::kUser;
+        current_user_preset_index_ = getUserPresetNames().indexOf(presetName);
+        current_factory_preset_index_ = -1;
     }
 
     void deletePreset(const juce::String& presetName) {
@@ -69,15 +84,16 @@ public:
         const auto presetFile = defaultDirectory.getChildFile(presetName + "." + extension);
         if (!presetFile.existsAsFile()) {
             DBG("Preset file does not exist for: " + presetName);
-
             return;
         }
         if (!presetFile.deleteFile()) {
             DBG("Preset file " + presetFile.getFullPathName() + " could not be deleted");
-
             return;
         }
         currentPreset.setValue("*deleted*");
+        current_scope_ = PresetScope::kDefault;
+        current_factory_preset_index_ = -1;
+        current_user_preset_index_ = -1;
     }
 
     void loadPreset(const juce::String& presetName) {
@@ -88,7 +104,6 @@ public:
         const auto presetFile = defaultDirectory.getChildFile(presetName + "." + extension);
         if (!presetFile.existsAsFile()) {
             DBG("Preset file does not exist for: " + presetName);
-
             return;
         }
 
@@ -102,28 +117,89 @@ public:
         processor_.setStateInformation(block.getData(), static_cast<int>(block.getSize()));
 
         currentPreset.setValue(presetName);
+        current_scope_ = PresetScope::kUser;
+        current_user_preset_index_ = getUserPresetNames().indexOf(presetName);
+        current_factory_preset_index_ = -1;
+    }
+
+    bool loadUserPresetByIndex(int index) {
+        const auto userPresets = getUserPresetNames();
+        if (index < 0 || index >= userPresets.size()) {
+            return false;
+        }
+        loadPreset(userPresets[index]);
+        current_scope_ = PresetScope::kUser;
+        current_user_preset_index_ = index;
+        current_factory_preset_index_ = -1;
+        return true;
+    }
+
+    bool loadFactoryPresetByIndex(int index) {
+        if (index < 0 || index >= static_cast<int>(factory_presets_.size())) {
+            return false;
+        }
+
+        const auto& preset = factory_presets_[static_cast<size_t>(index)];
+        processor_.setStateInformation(preset.xml, preset.xml_size);
+
+        const auto& name = preset.name;
+        currentPreset.setValue(name);
+        current_scope_ = PresetScope::kFactory;
+        current_factory_preset_index_ = index;
+        current_user_preset_index_ = -1;
+        return true;
     }
 
     std::pair<int, juce::String> loadNextPreset() {
-        const auto allPresets = getAllPresets();
-        if (allPresets.isEmpty()) {
-            return {-1, getCurrentPreset()};
+        if (current_scope_ == PresetScope::kFactory) {
+            return loadNextFactoryPreset();
         }
-        const auto currentIndex = allPresets.indexOf(currentPreset.toString());
-        const auto nextIndex = currentIndex + 1 > (allPresets.size() - 1) ? 0 : currentIndex + 1;
-        loadPreset(allPresets.getReference(nextIndex));
-        return {nextIndex, allPresets[nextIndex]};
+        if (current_scope_ == PresetScope::kUser) {
+            return loadNextUserPreset();
+        }
+
+        if (!factory_presets_.empty() && loadFactoryPresetByIndex(0)) {
+            return {0, getCurrentPreset()};
+        }
+
+        const auto userPresets = getUserPresetNames();
+        if (!userPresets.isEmpty() && loadUserPresetByIndex(0)) {
+            return {0, getCurrentPreset()};
+        }
+
+        return {-1, getCurrentPreset()};
     }
 
     std::pair<int, juce::String> loadPreviousPreset() {
-        const auto allPresets = getAllPresets();
-        if (allPresets.isEmpty()) {
-            return {-1, getCurrentPreset()};
+        if (current_scope_ == PresetScope::kFactory) {
+            return loadPreviousFactoryPreset();
         }
-        const auto currentIndex = allPresets.indexOf(currentPreset.toString());
-        const auto previousIndex = currentIndex - 1 < 0 ? allPresets.size() - 1 : currentIndex - 1;
-        loadPreset(allPresets.getReference(previousIndex));
-        return {previousIndex, allPresets[previousIndex]};
+        if (current_scope_ == PresetScope::kUser) {
+            return loadPreviousUserPreset();
+        }
+
+        if (!factory_presets_.empty() && loadFactoryPresetByIndex(0)) {
+            return {0, getCurrentPreset()};
+        }
+
+        const auto userPresets = getUserPresetNames();
+        if (!userPresets.isEmpty() && loadUserPresetByIndex(0)) {
+            return {0, getCurrentPreset()};
+        }
+
+        return {-1, getCurrentPreset()};
+    }
+
+    juce::StringArray getFactoryPresetNames() const {
+        juce::StringArray presets;
+        for (const auto& preset : factory_presets_) {
+            presets.add(preset.name);
+        }
+        return presets;
+    }
+
+    juce::StringArray getUserPresetNames() const {
+        return getAllPresets();
     }
 
     juce::StringArray getAllPresets() const {
@@ -143,6 +219,10 @@ public:
     void loadDefaultPatch() {
         processor_.setStateInformation(default_state_block_.getData(),
                                        static_cast<int>(default_state_block_.getSize()));
+        currentPreset.setValue(kDefaultPresetName);
+        current_scope_ = PresetScope::kDefault;
+        current_factory_preset_index_ = -1;
+        current_user_preset_index_ = -1;
         if (external_load_default_operations) {
             external_load_default_operations();
         }
@@ -158,8 +238,81 @@ public:
      */
     std::function<void()> external_load_default_operations;
 private:
+    std::pair<int, juce::String> loadNextFactoryPreset() {
+        if (factory_presets_.empty()) {
+            return {-1, getCurrentPreset()};
+        }
+
+        int currentIndex = current_factory_preset_index_;
+        if (currentIndex < 0 || currentIndex >= static_cast<int>(factory_presets_.size())) {
+            currentIndex = -1;
+        }
+        const int nextIndex = (currentIndex + 1) % static_cast<int>(factory_presets_.size());
+        if (loadFactoryPresetByIndex(nextIndex)) {
+            return {nextIndex, getCurrentPreset()};
+        }
+        return {-1, getCurrentPreset()};
+    }
+
+    std::pair<int, juce::String> loadPreviousFactoryPreset() {
+        if (factory_presets_.empty()) {
+            return {-1, getCurrentPreset()};
+        }
+
+        int currentIndex = current_factory_preset_index_;
+        if (currentIndex < 0 || currentIndex >= static_cast<int>(factory_presets_.size())) {
+            currentIndex = 0;
+        }
+        const int size = static_cast<int>(factory_presets_.size());
+        const int previousIndex = (currentIndex - 1 + size) % size;
+        if (loadFactoryPresetByIndex(previousIndex)) {
+            return {previousIndex, getCurrentPreset()};
+        }
+        return {-1, getCurrentPreset()};
+    }
+
+    std::pair<int, juce::String> loadNextUserPreset() {
+        const auto userPresets = getUserPresetNames();
+        if (userPresets.isEmpty()) {
+            return {-1, getCurrentPreset()};
+        }
+
+        int currentIndex = current_user_preset_index_;
+        if (currentIndex < 0 || currentIndex >= userPresets.size()) {
+            currentIndex = userPresets.indexOf(currentPreset.toString());
+            if (currentIndex < 0) currentIndex = -1;
+        }
+        const int nextIndex = (currentIndex + 1) % userPresets.size();
+        if (loadUserPresetByIndex(nextIndex)) {
+            return {nextIndex, getCurrentPreset()};
+        }
+        return {-1, getCurrentPreset()};
+    }
+
+    std::pair<int, juce::String> loadPreviousUserPreset() {
+        const auto userPresets = getUserPresetNames();
+        if (userPresets.isEmpty()) {
+            return {-1, getCurrentPreset()};
+        }
+
+        int currentIndex = current_user_preset_index_;
+        if (currentIndex < 0 || currentIndex >= userPresets.size()) {
+            currentIndex = userPresets.indexOf(currentPreset.toString());
+            if (currentIndex < 0) currentIndex = 0;
+        }
+        const int size = userPresets.size();
+        const int previousIndex = (currentIndex - 1 + size) % size;
+        if (loadUserPresetByIndex(previousIndex)) {
+            return {previousIndex, getCurrentPreset()};
+        }
+        return {-1, getCurrentPreset()};
+    }
+
     void valueTreeRedirected(juce::ValueTree& treeWhichHasBeenChanged) override {
         currentPreset.referTo(treeWhichHasBeenChanged.getPropertyAsValue(presetNameProperty, nullptr));
+        current_scope_ = PresetScope::kDefault;
+        current_factory_preset_index_ = -1;
+        current_user_preset_index_ = -1;
     }
 
     juce::AudioProcessorValueTreeState& valueTreeState;
@@ -168,6 +321,16 @@ private:
     juce::Value currentPreset;
 
     UpdateData update_data_;
+
+    struct FactoryPreset {
+        juce::String name;
+        const char* xml;
+        int xml_size;
+    };
+    std::vector<FactoryPreset> factory_presets_;
+    int current_factory_preset_index_{-1};
+    int current_user_preset_index_{-1};
+    PresetScope current_scope_{PresetScope::kDefault};
 
     friend class PresetPanel;
 };
