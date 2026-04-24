@@ -2,7 +2,6 @@
 #include <juce_gui_basics/juce_gui_basics.h>
 #include "component.hpp"
 #include "preset_manager.hpp"
-#include "update_gui.hpp"
 
 #if __has_include("BinaryData.h")
 #include "BinaryData.h"
@@ -139,14 +138,9 @@ public:
             plugin_name << JucePlugin_Name << ' ' << JucePlugin_VersionString;
             menu.addItem(plugin_name, false, false, [] {});
 
-            if (presetManager.GetUpdateData().HaveNewVersion()) {
-                menu.addItem("new version", [url = juce::URL{presetManager.GetUpdateData().GetPluginReleaseUrl()}] {
-                    url.launchInDefaultBrowser();
-                });
-            }
-            else {
-                menu.addItem("check update", [this] { CheckUpdate(); });
-            }
+            menu.addItem("goto github", [url = juce::URL{presetManager.GetUpdateData().GetPluginReleaseUrl()}] {
+                url.launchInDefaultBrowser();
+            });
 
             // scale
             juce::PopupMenu scale_menu;
@@ -319,12 +313,6 @@ private:
             userMenu.addItem(kUserMenuBaseId + i, user_menu_names_[static_cast<size_t>(i)]);
         }
         preset_menu_.addSubMenu("User", userMenu);
-    }
-
-    void CheckUpdate() {
-        presetManager.GetUpdateData().BeginCheck();
-        auto* diaglog = new UpdateMessageDialog(presetManager.GetUpdateData());
-        diaglog->enterModalState(true, nullptr, true);
     }
 
     PresetManager& presetManager;
