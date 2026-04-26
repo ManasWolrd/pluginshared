@@ -228,8 +228,6 @@ public:
         g.fillAll(ui::green_bg);
     }
 
-    void AddFactoryPreset();
-
     std::function<void(juce::PopupMenu&)> on_menu_showup;
 private:
     void buttonClicked(juce::Button* button) override {
