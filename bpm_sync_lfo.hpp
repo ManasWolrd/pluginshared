@@ -1,6 +1,7 @@
 #pragma once
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <bit>
+#include <mutex>
 
 namespace pluginshared {
 class BpmSyncLFO {
@@ -32,25 +33,24 @@ public:
         return output_table;
     }();
     inline static std::array<juce::String, kRateTableSize> s_rate_name_table;
-    inline static bool s_static_inited = false;
+    inline static std::once_flag s_tempo_table_init_flag;
 
     static void TryInitTempoTable() {
-        if (s_static_inited) return;
-        s_static_inited = true;
-
-        size_t wpos = 0;
-        for (auto val : kBaseRateTextTable) {
-            s_rate_name_table[wpos++] = juce::String{"-"} + val + "T";
-            s_rate_name_table[wpos++] = juce::String{"-"} + val;
-            s_rate_name_table[wpos++] = juce::String{"-"} + val + "D";
-        }
-        s_rate_name_table[wpos++] = "freeze";
-        for (auto it = kBaseRateTextTable.rbegin(); it != kBaseRateTextTable.rend(); ++it) {
-            auto val = *it;
-            s_rate_name_table[wpos++] = juce::String{val} + "D";
-            s_rate_name_table[wpos++] = juce::String{val};
-            s_rate_name_table[wpos++] = juce::String{val} + "T";
-        }
+        std::call_once(s_tempo_table_init_flag, [] {
+            size_t wpos = 0;
+            for (auto val : kBaseRateTextTable) {
+                s_rate_name_table[wpos++] = juce::String{"-"} + val + "T";
+                s_rate_name_table[wpos++] = juce::String{"-"} + val;
+                s_rate_name_table[wpos++] = juce::String{"-"} + val + "D";
+            }
+            s_rate_name_table[wpos++] = "freeze";
+            for (auto it = kBaseRateTextTable.rbegin(); it != kBaseRateTextTable.rend(); ++it) {
+                auto val = *it;
+                s_rate_name_table[wpos++] = juce::String{val} + "D";
+                s_rate_name_table[wpos++] = juce::String{val};
+                s_rate_name_table[wpos++] = juce::String{val} + "T";
+            }
+        });
     }
 
     static int GetTempoValueIndex(juce::StringRef rate_name) {
