@@ -142,16 +142,6 @@ public:
                 url.launchInDefaultBrowser();
             });
 
-            // scale
-            juce::PopupMenu scale_menu;
-            scale_menu.addItem("100%", [this] { TrySetParentScale(1.0f); });
-            scale_menu.addItem("125%", [this] { TrySetParentScale(1.25f); });
-            scale_menu.addItem("150%", [this] { TrySetParentScale(1.5f); });
-            scale_menu.addItem("175%", [this] { TrySetParentScale(1.75f); });
-            scale_menu.addItem("200%", [this] { TrySetParentScale(2.0f); });
-            scale_menu.addItem("300%", [this] { TrySetParentScale(3.0f); });
-            menu.addSubMenu("scale", std::move(scale_menu));
-
             if (on_menu_showup) {
                 on_menu_showup(menu);
             }
