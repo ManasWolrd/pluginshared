@@ -370,6 +370,7 @@ public:
         slider.setSliderStyle(juce::Slider::SliderStyle::LinearBar);
         slider.setLookAndFeel(GetLookAndFeel());
         slider.addMouseListener(&slider_menu_, true);
+        slider.setTextBoxIsEditable(false);
         addAndMakeVisible(slider);
         slider_menu_.menu_.setLookAndFeel(GetLookAndFeel());
 
