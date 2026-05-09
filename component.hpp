@@ -248,42 +248,46 @@ public:
         : slider_(slider) {}
 
     void mouseDown(const juce::MouseEvent& e) override {
-        std::ignore = e;
         juce::ModifierKeys keys = juce::ModifierKeys::getCurrentModifiers();
-        if (keys.isPopupMenu()) {
-            menu_.clear();
-            menu_.addItem("enter", [ptr_component = this] {
-                auto* editor = new juce::TextEditor;
-                editor->setText(ptr_component->slider_.getTextFromValue(ptr_component->slider_.getValue()));
 
-                juce::DialogWindow::LaunchOptions op;
-                op.dialogTitle = "enter";
-                op.escapeKeyTriggersCloseButton = true;
-                op.useNativeTitleBar = true;
-                op.resizable = false;
-                op.content = {editor, true};
+        auto action = [ptr_component = this] {
+            auto* editor = new juce::TextEditor;
+            editor->setText(ptr_component->slider_.getTextFromValue(ptr_component->slider_.getValue()));
+            editor->setSize(200, 50);
 
-                auto* dialog = op.create();
-                editor->onReturnKey = [&slider = ptr_component->slider_, dialog, editor] {
-                    slider.setValue(slider.getValueFromText(editor->getText()),
-                                    juce::NotificationType::sendNotificationSync);
-                    dialog->userTriedToCloseWindow();
-                };
-                dialog->enterModalState(true, nullptr, true);
-                juce::MessageManager::callAsync([editor] {
-                    editor->grabKeyboardFocus();
-                    editor->selectAll();
-                });
+            auto area = ptr_component->slider_.getScreenBounds();
+            juce::CallOutBox::launchAsynchronously(std::unique_ptr<juce::Component>(editor), area, nullptr);
+
+            editor->onReturnKey = [&slider = ptr_component->slider_, editor] {
+                slider.setValue(slider.getValueFromText(editor->getText()),
+                                juce::NotificationType::sendNotificationSync);
+                if (auto* callout = editor->findParentComponentOfClass<juce::CallOutBox>()) {
+                    callout->dismiss();
+                }
+            };
+            juce::MessageManager::callAsync([editor] {
+                editor->grabKeyboardFocus();
+                editor->selectAll();
             });
+        };
 
-            menu_.addItem("reset", [this] { slider_.setValue(slider_.getDoubleClickReturnValue()); });
-
-            if (on_menu_showup) {
-                on_menu_showup(menu_);
+        if (e.mods.isPopupMenu()) {
+            if (e.mods.isCommandDown()) {
+                action();
             }
+            else {
+                menu_.clear();
+                menu_.addItem("enter", action);
 
-            juce::PopupMenu::Options op;
-            menu_.showMenuAsync(op.withMousePosition());
+                menu_.addItem("reset", [this] { slider_.setValue(slider_.getDoubleClickReturnValue()); });
+
+                if (on_menu_showup) {
+                    on_menu_showup(menu_);
+                }
+
+                juce::PopupMenu::Options op;
+                menu_.showMenuAsync(op.withMousePosition());
+            }
         }
     }
 
