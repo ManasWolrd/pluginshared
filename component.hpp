@@ -370,6 +370,7 @@ public:
         slider.setSliderStyle(juce::Slider::SliderStyle::LinearBar);
         slider.setLookAndFeel(GetLookAndFeel());
         slider.addMouseListener(&slider_menu_, true);
+        slider.setTextBoxIsEditable(false);
         addAndMakeVisible(slider);
         slider_menu_.menu_.setLookAndFeel(GetLookAndFeel());
 
@@ -517,11 +518,11 @@ private:
 // ----------------------------------------
 // flat selector
 // ----------------------------------------
-class CubeSelector : public juce::Component {
+class FlatSelector : public juce::Component {
 public:
-    class Cube : public juce::Component {
+    class Choice : public juce::Component {
     public:
-        Cube(CubeSelector& parent)
+        Choice(FlatSelector& parent)
             : parent_(parent) {}
         void paint(juce::Graphics& g) override {
             if (parent_.selecting_ == this) {
@@ -538,23 +539,31 @@ public:
             g.drawRect(getLocalBounds());
         }
 
+        int GetTextBound(int height) const {
+            return juce::TextLayout::getStringWidth(GetFont(height), title);
+        }
+
+        juce::Font GetFont(int height) const {
+            return juce::Font{juce::FontOptions{}.withHeight(height * 0.6f)};
+        }
+
         juce::String title;
     private:
-        CubeSelector& parent_;
+        FlatSelector& parent_;
     };
 
-    ~CubeSelector() override {
+    ~FlatSelector() override {
         attach_ = nullptr;
         cubes_.clear();
     }
 
-    std::span<std::unique_ptr<Cube>> BindParam(juce::AudioProcessorValueTreeState& apvts, juce::StringRef id,
+    std::span<std::unique_ptr<Choice>> BindParam(juce::AudioProcessorValueTreeState& apvts, juce::StringRef id,
                                                bool add_choices) {
         auto* param = apvts.getParameter(id);
         return BindParam(static_cast<juce::AudioParameterChoice*>(param), add_choices);
     }
 
-    std::span<std::unique_ptr<Cube>> BindParam(juce::AudioParameterChoice* param, bool add_choices) {
+    std::span<std::unique_ptr<Choice>> BindParam(juce::AudioParameterChoice* param, bool add_choices) {
         jassert(param != nullptr);
         attach_ = nullptr;
         attach_ = std::make_unique<juce::ParameterAttachment>(
@@ -567,7 +576,7 @@ public:
         size_t idx_begin = cubes_.size();
         auto const& choices = param->choices;
         for (auto const& str : choices) {
-            auto& cube_item = cubes_.emplace_back(std::make_unique<Cube>(*this));
+            auto& cube_item = cubes_.emplace_back(std::make_unique<Choice>(*this));
             cube_item->title = str;
             cube_item->addMouseListener(this, true);
             addAndMakeVisible(*cube_item);
@@ -578,23 +587,33 @@ public:
         return std::span{cubes_}.subspan(idx_begin);
     }
 
-    void AddCube(juce::StringRef title) {
-        auto& cube_item = cubes_.emplace_back(std::make_unique<Cube>(*this));
+    Choice& AddChoice(juce::StringRef title) {
+        auto& cube_item = cubes_.emplace_back(std::make_unique<Choice>(*this));
         cube_item->title = title;
         cube_item->addMouseListener(this, true);
         addAndMakeVisible(*cube_item);
+        return *cube_item;
     }
 
-    Cube& GetCube(size_t idx) noexcept {
+    Choice& GetCube(size_t idx) noexcept {
         return *cubes_[idx];
     }
 
-    std::vector<std::unique_ptr<Cube>>& GetAllCubes() noexcept {
+    std::vector<std::unique_ptr<Choice>>& GetAllCubes() noexcept {
         return cubes_;
     }
 
     void Set(size_t i) {
         OnValueChanged(i);
+    }
+
+    int Get() const {
+        for (int i = 0; i < cubes_.size(); ++i) {
+            if (selecting_ == cubes_[i].get()) {
+                return i;
+            }
+        }
+        return -1;
     }
 
     std::function<void(size_t)> on_value_changed;
@@ -627,8 +646,8 @@ private:
     }
 
     std::unique_ptr<juce::ParameterAttachment> attach_;
-    Cube* selecting_{};
-    std::vector<std::unique_ptr<Cube>> cubes_;
+    Choice* selecting_{};
+    std::vector<std::unique_ptr<Choice>> cubes_;
 };
 
 // ----------------------------------------

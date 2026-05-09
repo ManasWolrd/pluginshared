@@ -115,7 +115,6 @@ public:
         juce::MemoryBlock block;
         c.readIntoMemoryBlock(block);
         processor_.setStateInformation(block.getData(), static_cast<int>(block.getSize()));
-        processor_.reset();
 
         currentPreset.setValue(presetName);
         current_scope_ = PresetScope::kUser;
@@ -142,7 +141,6 @@ public:
 
         const auto& preset = factory_presets_[static_cast<size_t>(index)];
         processor_.setStateInformation(preset.xml, preset.xml_size);
-        processor_.reset();
 
         const auto& name = preset.name;
         currentPreset.setValue(name);
@@ -221,7 +219,6 @@ public:
     void loadDefaultPatch() {
         processor_.setStateInformation(default_state_block_.getData(),
                                        static_cast<int>(default_state_block_.getSize()));
-        processor_.reset();
         currentPreset.setValue(kDefaultPresetName);
         current_scope_ = PresetScope::kDefault;
         current_factory_preset_index_ = -1;
