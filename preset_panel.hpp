@@ -119,7 +119,6 @@ public:
     PresetPanel(PresetManager& pm)
         : presetManager(pm) {
         configureButton(saveButton, "Save");
-        configureButton(deleteButton, "Delete");
         configureButton(previousPresetButton, "<");
         configureButton(nextPresetButton, ">");
         ui::SetLableBlack(preset_name_);
@@ -138,7 +137,7 @@ public:
             plugin_name << JucePlugin_Name << ' ' << JucePlugin_VersionString;
             menu.addItem(plugin_name, false, false, [] {});
 
-            menu.addItem("goto github", [url = juce::URL{presetManager.GetUpdateData().GetPluginReleaseUrl()}] {
+            menu.addItem("Goto Github", [url = juce::URL{presetManager.GetUpdateData().GetPluginReleaseUrl()}] {
                 url.launchInDefaultBrowser();
             });
 
@@ -155,7 +154,6 @@ public:
 
     ~PresetPanel() override {
         saveButton.removeListener(this);
-        deleteButton.removeListener(this);
         previousPresetButton.removeListener(this);
         nextPresetButton.removeListener(this);
         preset_name_.removeMouseListener(this);
@@ -206,8 +204,6 @@ public:
         options_button_.setBounds(
             container.removeFromLeft(options_button_.GetBoundsFit(container.getHeight()).getWidth()));
 
-        deleteButton.setBounds(
-            container.removeFromRight(GetButtonWidth(deleteButton, container.getHeight())).reduced(2));
         saveButton.setBounds(container.removeFromRight(GetButtonWidth(saveButton, container.getHeight())).reduced(2));
         previousPresetButton.setBounds(container.removeFromLeft(container.getHeight()).reduced(2));
         nextPresetButton.setBounds(container.removeFromRight(container.getHeight()).reduced(2));
@@ -245,11 +241,6 @@ private:
             auto [index, name] = presetManager.loadNextPreset();
             preset_name_.setText(name, juce::dontSendNotification);
         }
-        else if (button == &deleteButton) {
-            presetManager.deletePreset(presetManager.getCurrentPreset());
-            loadPresetList();
-            preset_name_.setText(presetManager.getCurrentPreset(), juce::dontSendNotification);
-        }
     }
 
     void TrySetParentScale(float scale) {
@@ -284,10 +275,16 @@ private:
         }
 
         preset_menu_.clear();
-        preset_menu_.addItem(kInitPatchMenuId, "init patch");
-        preset_menu_.addItem("rescan", [this] {
+        preset_menu_.addItem(kInitPatchMenuId, "Init Patch");
+        preset_menu_.addItem("Rescan Presets", [this] {
             loadPresetList();
         });
+        preset_menu_.addItem("Open Preset Folder", []{
+            juce::File(PresetManager::defaultDirectory).startAsProcess();
+        });
+
+        // -------------------- begin preset --------------------
+
         preset_menu_.addSeparator();
 
         juce::PopupMenu factoryMenu;
@@ -304,7 +301,7 @@ private:
     }
 
     PresetManager& presetManager;
-    ui::FlatButton saveButton, deleteButton, previousPresetButton, nextPresetButton;
+    ui::FlatButton saveButton, previousPresetButton, nextPresetButton;
     juce::Label preset_name_{"", PresetManager::kDefaultPresetName};
     juce::PopupMenu preset_menu_;
     std::vector<juce::String> factory_menu_names_;
