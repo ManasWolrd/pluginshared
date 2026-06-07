@@ -52,9 +52,21 @@ private:
         auto irpos = simd::ToInt(rpos) - 1;
         irpos &= mask_;
 
+#ifndef SIMDE_X86_AVX2_NATIVE
         alignas(16) auto [yn1, y0, y1, y2] =
             simd::Transpose(simd::Loadu128(buffer_.data() + irpos[0]), simd::Loadu128(buffer_.data() + irpos[1]),
                             simd::Loadu128(buffer_.data() + irpos[2]), simd::Loadu128(buffer_.data() + irpos[3]));
+#else
+        float const* raw = buffer_.data();
+        simde__m128i base_vindex = simd::ToSimde(irpos);
+        auto yn1 = simd::FromSimde(simde_mm_i32gather_ps(raw, base_vindex, 4));
+        auto y0 =
+            simd::FromSimde(simde_mm_i32gather_ps(raw, simde_mm_add_epi32(base_vindex, simde_mm_set1_epi32(1)), 4));
+        auto y1 =
+            simd::FromSimde(simde_mm_i32gather_ps(raw, simde_mm_add_epi32(base_vindex, simde_mm_set1_epi32(2)), 4));
+        auto y2 =
+            simd::FromSimde(simde_mm_i32gather_ps(raw, simde_mm_add_epi32(base_vindex, simde_mm_set1_epi32(3)), 4));
+#endif
 
         auto d0 = (y1 - yn1) * 0.5f;
         auto d1 = (y2 - y0) * 0.5f;
@@ -70,11 +82,23 @@ private:
         auto irpos = simd::ToInt(rpos) - 1;
         irpos &= mask_;
 
+#ifndef SIMDE_X86_AVX2_NATIVE
         alignas(32) auto [yn1, y0, y1, y2] =
             simd::Transpose256(simd::Loadu128(buffer_.data() + irpos[0]), simd::Loadu128(buffer_.data() + irpos[1]),
                                simd::Loadu128(buffer_.data() + irpos[2]), simd::Loadu128(buffer_.data() + irpos[3]),
                                simd::Loadu128(buffer_.data() + irpos[4]), simd::Loadu128(buffer_.data() + irpos[5]),
                                simd::Loadu128(buffer_.data() + irpos[6]), simd::Loadu128(buffer_.data() + irpos[7]));
+#else
+        float const* raw = buffer_.data();
+        simde__m256i base_vindex = simd::ToSimde(irpos);
+        auto yn1 = simd::FromSimde(simde_mm256_i32gather_ps(raw, base_vindex, 4));
+        auto y0 = simd::FromSimde(
+            simde_mm256_i32gather_ps(raw, simde_mm256_add_epi32(base_vindex, simde_mm256_set1_epi32(1)), 4));
+        auto y1 = simd::FromSimde(
+            simde_mm256_i32gather_ps(raw, simde_mm256_add_epi32(base_vindex, simde_mm256_set1_epi32(2)), 4));
+        auto y2 = simd::FromSimde(
+            simde_mm256_i32gather_ps(raw, simde_mm256_add_epi32(base_vindex, simde_mm256_set1_epi32(3)), 4));
+#endif
 
         auto d0 = (y1 - yn1) * 0.5f;
         auto d1 = (y2 - y0) * 0.5f;
